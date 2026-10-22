@@ -147,6 +147,9 @@ public static class ThemeManager
             if (Pick(ui, key, VsCodeUi) is { } hex) SetBrush(key, hex);
         foreach (var key in EditorKeys)
             if (Pick(editor, key, VsCodeEditor) is { } hex) SetBrush("Editor" + key, hex);
+        // Flat-button hover: the text color at low opacity, so it is quiet in every theme.
+        var fg = Color("Fg");
+        SetBrush("HoverSubtle", Avalonia.Media.Color.FromArgb((byte)(IsLight ? 0x12 : 0x16), fg.R, fg.G, fg.B).ToString());
         // Editor background/foreground default to the UI ones.
         SetBrush("EditorText", Pick(editor, "Foreground", new() { ["Foreground"] = ["editor.foreground"] }) ?? Color("FgEditor").ToString());
 

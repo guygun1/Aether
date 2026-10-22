@@ -35,7 +35,7 @@
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
   <Style Selector="Button.flat:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="{StaticResource Hover}" />
+    <Setter Property="Background" Value="{StaticResource HoverSubtle}" />
   </Style>
   <Style Selector="Button.flat:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource BorderStrong}" />
@@ -60,6 +60,11 @@
     <Setter Property="Foreground" Value="White" />
     <Setter Property="CornerRadius" Value="5" />
     <Setter Property="Padding" Value="14,5" />
+  </Style>
+  <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource HoverSubtle}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
+    <Setter Property="Foreground" Value="{StaticResource Fg}" />
   </Style>
   <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource AccentHover}" />

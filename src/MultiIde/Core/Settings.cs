@@ -30,6 +30,24 @@ public static class IdePaths
     public static string UserPlugins => Path.Combine(Home, "plugins");
     public static string SettingsFile => Path.Combine(Home, "settings.json");
     public static string BundledPlugins => Path.Combine(AppContext.BaseDirectory, "plugins");
+    /// <summary>Decompiled dependency sources (cached).</summary>
+    public static string Decompiled => Path.Combine(Home, "decompiled");
+
+    /// <summary>Files from dependencies or toolchains: shown read-only, like library sources in IntelliJ.</summary>
+    public static bool IsLibraryPath(string path)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string[] roots =
+        [
+            Decompiled,
+            Path.Combine(home, ".cargo", "registry"), Path.Combine(home, ".cargo", "git"), Path.Combine(home, ".rustup"),
+            Path.Combine(home, ".nuget", "packages"),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+        ];
+        var full = Path.GetFullPath(path);
+        return roots.Any(r => r.Length > 0 && full.StartsWith(r, StringComparison.OrdinalIgnoreCase));
+    }
 
     public static bool IsWindows => OperatingSystem.IsWindows();
 
@@ -52,6 +70,9 @@ public sealed class Settings
     public bool WordWrap { get; set; }
     /// <summary>Single-click a file in the project tree to open it in a preview tab.</summary>
     public bool PreviewTab { get; set; } = true;
+    public bool AutoscrollFromSource { get; set; } = true;
+    public bool FoldersFirst { get; set; } = true;
+    public bool ShowExcludedFolders { get; set; } = true;
     public List<string> DisabledPlugins { get; set; } = new();
     /// <summary>Values of plugin-declared settings: pluginId → key → value.</summary>
     public Dictionary<string, Dictionary<string, System.Text.Json.Nodes.JsonNode?>> PluginSettings { get; set; } = new();

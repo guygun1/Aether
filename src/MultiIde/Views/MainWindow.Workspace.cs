@@ -67,6 +67,7 @@ public partial class MainWindow : IEditorHost
         StartWatcher();
         ShowEmptyEditor();
         if (Settings.RestoreSession) _ = RestoreSessionAsync();
+        ProjectOptionsButton();
         _ = RefreshGitAsync();
         UpdateStatusBar();
     }
@@ -337,7 +338,7 @@ public partial class MainWindow : IEditorHost
                 foreach (var node in loaded.Where(n => dirs.Any(d => string.Equals(d, n.FullPath, StringComparison.OrdinalIgnoreCase))))
                     await node.RefreshAsync();
             }
-            if (_root is not null && dirs.Any(d => string.Equals(d, _root, StringComparison.OrdinalIgnoreCase))) RefreshRunConfigs();
+            if (_root is not null && dirs.Any(d => string.Equals(d, _root, StringComparison.OrdinalIgnoreCase) || d.Contains(".aether", StringComparison.OrdinalIgnoreCase))) RefreshRunConfigs();
         }
         foreach (var f in files)
         {
@@ -422,7 +423,8 @@ public partial class MainWindow : IEditorHost
 
         if (_diagnostics.TryGetValue(IdePaths.Key(path), out var known)) doc.SetDiagnostics(known.Items);
         if (doc.IsLarge) Notify($"{doc.Name} is large; code insight is turned off for this file to keep the editor fast.");
-        _ = AttachLspAsync(doc);
+        if (IdePaths.IsLibraryPath(path)) view.Editor.IsReadOnly = true; // dependency / decompiled source
+        if (!path.StartsWith(IdePaths.Decompiled, StringComparison.OrdinalIgnoreCase)) _ = AttachLspAsync(doc);
         return view;
     }
 
@@ -519,8 +521,38 @@ public partial class MainWindow : IEditorHost
         SelectInTree(view.Doc.FilePath);
     }
 
-    private void SelectInTree(string path)
+    /// <summary>IntelliJ-style options (⚙) for the Project tool window.</summary>
+    private void ProjectOptionsButton()
     {
+        if (HideLeftButton.Parent is not Panel header || header.Children.OfType<Button>().Any(b => b.Tag as string == "options")) return;
+        var gear = new Button { Classes = { "flat" }, Tag = "options", Content = new TextBlock { Classes = { "icon" }, Text = "", FontSize = 12 } };
+        ToolTip.SetTip(gear, "Options");
+        gear.Click += (_, _) =>
+        {
+            var menu = new MenuFlyout();
+            void Toggle(string title, bool value, Action<bool> set, bool reload = false)
+            {
+                var item = new MenuItem { Header = (value ? "✓  " : "     ") + title };
+                item.Click += async (_, _) => { set(!value); Settings.Save(); if (reload && _rootNode is not null) await _rootNode.RefreshAsync(); };
+                menu.Items.Add(item);
+            }
+            Toggle("Always Select Opened File", Settings.AutoscrollFromSource, v => Settings.AutoscrollFromSource = v);
+            Toggle("Open Files with Single Click", Settings.PreviewTab, v => Settings.PreviewTab = v);
+            Toggle("Folders Always on Top", Settings.FoldersFirst, v => Settings.FoldersFirst = v, reload: true);
+            Toggle("Show Hidden Files", Settings.ShowHiddenFiles, v => Settings.ShowHiddenFiles = v, reload: true);
+            Toggle("Show Excluded Folders", Settings.ShowExcludedFolders, v => Settings.ShowExcludedFolders = v, reload: true);
+            menu.Items.Add(new Separator());
+            var select = new MenuItem { Header = "     Select Opened File" };
+            select.Click += (_, _) => { if (_active is not null) SelectInTree(_active.Doc.FilePath, force: true); };
+            menu.Items.Add(select);
+            menu.ShowAt(gear);
+        };
+        header.Children.Insert(header.Children.IndexOf(HideLeftButton), gear);
+    }
+
+    private void SelectInTree(string path, bool force = false)
+    {
+        if (!force && !Settings.AutoscrollFromSource) return;
         if (_rootNode?.Find(path) is { } node) ProjectTree.SelectedItem = node;
     }
 
@@ -608,7 +640,7 @@ public partial class MainWindow : IEditorHost
             var hasErrors = v.Doc.Diagnostics.Any(d => d.Severity == 1);
             row.Children.Add(new TextBlock
             {
-                Text = v.Doc.Name,
+                Text = v.Editor.IsReadOnly ? "🔒 " + v.Doc.Name : v.Doc.Name,
                 FontStyle = v.IsPreview ? FontStyle.Italic : FontStyle.Normal,
                 VerticalAlignment = VerticalAlignment.Center,
                 Foreground = hasErrors ? (IBrush)Application.Current!.FindResource("Error")! : (IBrush)Application.Current!.FindResource(active ? "Fg" : "FgMuted")!,
@@ -732,6 +764,40 @@ public partial class MainWindow : IEditorHost
     }
 
     public void ShowFileStructure(EditorView view, IReadOnlyList<SymbolEntry> symbols) => ShowStructure(view, symbols);
+
+    public void Status(string message)
+    {
+        StatusMessage.Text = message;
+        DispatcherTimer.RunOnce(() => { if (StatusMessage.Text == message) StatusMessage.Text = ""; }, TimeSpan.FromSeconds(6));
+    }
+
+    /// <summary>
+    /// Resolves declarations that live in dependencies but have no file on disk. csharp-ls returns
+    /// "csharp:/metadata/..." URIs; we fetch the decompiled source and cache it as a read-only file.
+    /// </summary>
+    public async Task<CodeLocation?> ResolveExternalAsync(LspClient lsp, CodeLocation location)
+    {
+        var uri = location.Uri!;
+        if (!uri.StartsWith("csharp:", StringComparison.OrdinalIgnoreCase)) return null;
+        try
+        {
+            var result = await lsp.RequestAsync("csharp/metadata", new JsonObject { ["textDocument"] = new JsonObject { ["uri"] = uri } });
+            var source = LspUtil.Str(result?["source"]);
+            if (source.Length == 0) return null;
+            var assembly = Safe(LspUtil.Str(result?["assemblyName"]));
+            var symbol = Safe(LspUtil.Str(result?["symbolName"]));
+            var path = Path.Combine(IdePaths.Decompiled, assembly.Length > 0 ? assembly : "metadata", (symbol.Length > 0 ? symbol : "Symbol") + ".cs");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, "// Decompiled from " + (assembly.Length > 0 ? assembly : "metadata") + " (read-only)\n" + source);
+            return location with { Path = path, Line = location.Line + 1, Uri = null };
+        }
+        catch
+        {
+            return null;
+        }
+
+        static string Safe(string s) => string.Concat(s.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+    }
 
     // Hooks used by the shared hub pages.
     protected override LspClient? RunningServer(string serverId) => Lsp.Get(serverId);

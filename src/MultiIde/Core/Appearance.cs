@@ -35,32 +35,10 @@ public static class Anim
         var app = Application.Current;
         if (app is null) return;
         if (_transitionStyles is not null) app.Styles.Remove(_transitionStyles);
+        // Hover highlights are deliberately not animated: a fading-out highlight left several
+        // buttons lit at once while moving the mouse. Only popups and panels animate.
         _transitionStyles = new Styles();
-        if (Enabled)
-        {
-            var d = Duration(110);
-            _transitionStyles.Add(TransitionStyle(x => x.OfType<Button>().Template().OfType<ContentPresenter>(), d));
-            _transitionStyles.Add(TransitionStyle(x => x.OfType<ListBoxItem>().Template().OfType<ContentPresenter>(), d));
-            _transitionStyles.Add(TransitionStyle(x => x.OfType<TreeViewItem>().Template().OfType<Border>(), d));
-            _transitionStyles.Add(TransitionStyle(x => x.OfType<MenuItem>().Template().OfType<Border>(), d));
-            _transitionStyles.Add(TransitionStyle(x => x.OfType<ComboBoxItem>().Template().OfType<ContentPresenter>(), d));
-        }
         app.Styles.Add(_transitionStyles);
-    }
-
-    private static Style TransitionStyle(Func<Selector?, Selector> selector, TimeSpan d) => new(selector)
-    {
-        Setters = { new Setter(Animatable.TransitionsProperty, new TransitionsTemplate(d)) },
-    };
-
-    /// <summary>Builds a fresh Transitions per control (a shared instance cannot have several owners).</summary>
-    private sealed class TransitionsTemplate(TimeSpan duration) : ITemplate
-    {
-        public object? Build() => new Transitions
-        {
-            new BrushTransition { Property = Border.BackgroundProperty, Duration = duration, Easing = new CubicEaseOut() },
-            new BrushTransition { Property = ContentPresenter.ForegroundProperty, Duration = duration },
-        };
     }
 
     private static bool _popupsHooked;

@@ -21,7 +21,8 @@ using MultiIde.Protocol;
 
 namespace MultiIde.Editor;
 
-public sealed record CodeLocation(string Path, int Line, int Column, string? Preview = null);
+/// <summary>A source location. Uri is set for non-file locations (e.g. decompiled metadata) that the host must resolve.</summary>
+public sealed record CodeLocation(string Path, int Line, int Column, string? Preview = null, string? Uri = null);
 public sealed record SymbolEntry(string Name, string Detail, int Kind, int Line, int Column, int Depth);
 
 /// <summary>What the editor needs from the surrounding IDE.</summary>
@@ -35,6 +36,10 @@ public interface IEditorHost
     void ShowFileStructure(EditorView view, IReadOnlyList<SymbolEntry> symbols);
     void Notify(string message, bool error = false);
     void CaretMoved(EditorView view);
+    /// <summary>A quiet status-bar message (no popup) for non-critical feedback.</summary>
+    void Status(string message);
+    /// <summary>Turns a non-file location (e.g. "csharp:/metadata/...") into a local, read-only file.</summary>
+    Task<CodeLocation?> ResolveExternalAsync(LspClient lsp, CodeLocation location);
     /// <summary>Formats with a plugin formatter if one applies; returns false to fall back to the language server.</summary>
     Task<bool> TryPluginFormatAsync(EditorView view);
 }
@@ -923,7 +928,9 @@ public sealed class EditorView : UserControl
             var range = item?["range"] ?? item?["targetSelectionRange"] ?? item?["targetRange"];
             if (uri.Length == 0) continue;
             var (line, col) = LspUtil.ReadPos(range?["start"]);
-            list.Add(new CodeLocation(LspUtil.ToPath(uri), line + 1, col + 1));
+            list.Add(uri.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+                ? new CodeLocation(LspUtil.ToPath(uri), line + 1, col + 1)
+                : new CodeLocation(uri, line + 1, col + 1, Uri: uri));
         }
         return list;
     }
@@ -931,7 +938,7 @@ public sealed class EditorView : UserControl
     private bool Require(string capability, string feature)
     {
         if (Doc.Lsp is { } lsp && lsp.Has(capability)) return true;
-        _host.Notify(Doc.Lsp is null
+        _host.Status(Doc.Lsp is null
             ? $"{feature} needs a language server for {Doc.LanguageName}. Check Settings → Plugins."
             : $"{feature} is not supported by {Doc.Lsp.Config.Name}.");
         return false;
@@ -942,12 +949,18 @@ public sealed class EditorView : UserControl
         if (!Require("definitionProvider", "Go to declaration")) return;
         try
         {
-            var locations = ParseLocations(await Doc.Lsp!.RequestAsync("textDocument/definition", Doc.PositionParams(offset)));
-            if (locations.Count == 0) _host.Notify("Cannot find declaration to go to");
+            var lsp = Doc.Lsp!;
+            var locations = ParseLocations(await lsp.RequestAsync("textDocument/definition", Doc.PositionParams(offset)));
+            // Declarations inside dependencies may come as virtual URIs (e.g. decompiled C# metadata).
+            for (var i = 0; i < locations.Count; i++)
+                if (locations[i].Uri is not null && await _host.ResolveExternalAsync(lsp, locations[i]) is { } resolved)
+                    locations[i] = resolved;
+            locations.RemoveAll(l => l.Uri is not null);
+            if (locations.Count == 0) _host.Status("No declaration found");
             else if (locations.Count == 1) await _host.OpenFileAsync(locations[0].Path, locations[0].Line, locations[0].Column);
             else _host.ShowLocations("Declarations", locations);
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 
     public async Task FindUsagesAsync()
@@ -963,7 +976,7 @@ public sealed class EditorView : UserControl
             while (end < Doc.Text.TextLength && IsIdent(Doc.Text.GetCharAt(end))) end++;
             _host.ShowLocations($"Usages of '{Doc.Text.GetText(start, end - start)}'", locations);
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 
     public async Task RenameAsync()
@@ -978,7 +991,7 @@ public sealed class EditorView : UserControl
         var p = Doc.PositionParams(caret);
         p["newName"] = name;
         try { await _host.ApplyWorkspaceEditAsync(await Doc.Lsp!.RequestAsync("textDocument/rename", p)); }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 
     public async Task FormatAsync()
@@ -994,7 +1007,7 @@ public sealed class EditorView : UserControl
             });
             Doc.ApplyEdits(edits as JsonArray);
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 
     public async Task FileStructureAsync()
@@ -1017,7 +1030,7 @@ public sealed class EditorView : UserControl
             Walk(result, 0);
             _host.ShowFileStructure(this, symbols);
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 
     public async Task CodeActionsAsync()
@@ -1042,11 +1055,11 @@ public sealed class EditorView : UserControl
                 ["context"] = new JsonObject { ["diagnostics"] = diagnostics },
             }) as JsonArray;
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); return; }
+        catch (Exception ex) { _host.Status(ex.Message); return; }
 
         if (actions is null || actions.Count == 0)
         {
-            _host.Notify("No context actions available here");
+            _host.Status("No context actions here");
             return;
         }
 
@@ -1096,7 +1109,7 @@ public sealed class EditorView : UserControl
             if (action["command"] is JsonObject cmd)
                 await lsp.RequestAsync("workspace/executeCommand", new JsonObject { ["command"] = cmd["command"]?.DeepClone(), ["arguments"] = cmd["arguments"]?.DeepClone() });
         }
-        catch (Exception ex) { _host.Notify(ex.Message, true); }
+        catch (Exception ex) { _host.Status(ex.Message); }
     }
 }
 

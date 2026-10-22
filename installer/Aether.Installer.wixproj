@@ -1,0 +1,21 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!--
+    Builds Aether-<version>-x64.msi from a self-contained publish.
+    Run installer\build.ps1 (publishes first), or:
+      dotnet build installer\Aether.Installer.wixproj -c Release -p:PublishDir=<path to publish>
+  -->
+  <PropertyGroup>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.1.0</ProductVersion>
+    <OutputName>Aether-$(ProductVersion)-x64</OutputName>
+    <PublishDir Condition="'$(PublishDir)' == ''">$(MSBuildThisFileDirectory)..\artifacts\publish</PublishDir>
+    <DefineConstants>PublishDir=$(PublishDir);ProductVersion=$(ProductVersion);RepoRoot=$(MSBuildThisFileDirectory)..</DefineConstants>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <OutputPath>$(MSBuildThisFileDirectory)..\artifacts\installer\</OutputPath>
+    <!-- Per-user installs keep files under %LocalAppData%; these ICEs assume per-machine layout. -->
+    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

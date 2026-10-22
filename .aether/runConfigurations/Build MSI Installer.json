@@ -1,0 +1,9 @@
+{
+  "name": "Build MSI Installer",
+  "type": "shell",
+  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File installer\build.ps1",
+  "workingDirectory": "${workspaceFolder}",
+  "kind": "build",
+  "saveBefore": true,
+  "activateToolWindow": true
+}

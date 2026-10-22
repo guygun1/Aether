@@ -26,6 +26,8 @@ public sealed class RunConfig
     /// <summary>True for configurations detected from plugins (not stored in run.json).</summary>
     [JsonIgnore] public bool Detected { get; set; }
     [JsonIgnore] public string? Source { get; set; }
+    /// <summary>Set when this configuration lives in its own file in .aether/runConfigurations/.</summary>
+    [JsonIgnore] public string? FilePath { get; set; }
 
     public string CommandLine => Type == "program"
         ? $"{(Program.Contains(' ') && !Program.StartsWith('"') ? $"\"{Program}\"" : Program)} {Arguments}".Trim()
@@ -38,6 +40,7 @@ public sealed class RunConfig
         copy.BeforeLaunch = new(BeforeLaunch);
         copy.Detected = false;
         copy.Source = null;
+        copy.FilePath = null;
         if (name is not null) copy.Name = name;
         return copy;
     }
@@ -60,27 +63,64 @@ public sealed class RunConfigStore
 
     public static string PathFor(string root) => System.IO.Path.Combine(IdePaths.ProjectDir(root), "run.json");
 
+    /// <summary>Folder of one-configuration-per-file run configurations (easy to share and review).</summary>
+    public static string FolderFor(string root) => System.IO.Path.Combine(IdePaths.ProjectDir(root), "runConfigurations");
+
     public static RunConfigStore Load(string root)
     {
+        var store = new RunConfigStore();
         try
         {
             var file = PathFor(root);
             if (File.Exists(file))
-                return JsonSerializer.Deserialize<RunConfigStore>(File.ReadAllText(file), Settings.Json) ?? new();
+                store = JsonSerializer.Deserialize<RunConfigStore>(File.ReadAllText(file), Settings.Json) ?? new();
         }
         catch
         {
-            // A broken run.json falls back to detected configurations only.
+            // A broken run.json falls back to the other sources.
         }
-        return new();
+        var folder = FolderFor(root);
+        if (Directory.Exists(folder))
+            foreach (var f in Directory.GetFiles(folder, "*.json").OrderBy(f => f))
+            {
+                try
+                {
+                    if (JsonSerializer.Deserialize<RunConfig>(File.ReadAllText(f), Settings.Json) is { } rc && store.Configurations.All(c => c.Name != rc.Name))
+                    {
+                        rc.FilePath = f;
+                        store.Configurations.Add(rc);
+                    }
+                }
+                catch
+                {
+                    // Skip a malformed file.
+                }
+            }
+        return store;
     }
 
     public void Save(string root)
     {
+        var folder = FolderFor(root);
+        // File-backed configurations go to their own files; others to run.json.
+        var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rc in Configurations.Where(c => c.FilePath is not null))
+        {
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(rc.FilePath!, JsonSerializer.Serialize(rc, Settings.Json));
+            known.Add(rc.FilePath!);
+        }
+        if (Directory.Exists(folder))
+            foreach (var f in Directory.GetFiles(folder, "*.json").Where(f => !known.Contains(f)))
+                File.Delete(f); // removed in the dialog
+        var shared = new RunConfigStore { Configurations = Configurations.Where(c => c.FilePath is null).ToList(), Selected = Selected };
         var file = PathFor(root);
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(file)!);
-        File.WriteAllText(file, JsonSerializer.Serialize(this, Settings.Json));
+        File.WriteAllText(file, JsonSerializer.Serialize(shared, Settings.Json));
     }
+
+    public static string FileNameFor(string root, string name) =>
+        System.IO.Path.Combine(FolderFor(root), string.Concat(name.Select(c => System.IO.Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)) + ".json");
 }
 
 /// <summary>Expands IDE macros in commands, arguments and paths.</summary>

@@ -452,6 +452,8 @@ public partial class MainWindow
                 Check("Save all files before launch", rc.SaveBefore, v => rc.SaveBefore = v),
                 Check("Show the Run tool window when started", rc.ActivateToolWindow, v => rc.ActivateToolWindow = v),
                 Check("Allow multiple instances", rc.AllowParallel, v => rc.AllowParallel = v),
+                Check("Store as a project file (.aether/runConfigurations/)", rc.FilePath is not null,
+                    v => rc.FilePath = v ? RunConfigStore.FileNameFor(_root!, rc.Name) : null),
                 macros,
             },
         };

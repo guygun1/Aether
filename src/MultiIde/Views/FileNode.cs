@@ -92,10 +92,13 @@ public sealed class FileNode : INotifyPropertyChanged
             {
                 var showHidden = IdeServices.Settings.ShowHiddenFiles;
                 bool Visible(string p) => showHidden || !Path.GetFileName(p).StartsWith('.');
-                var dirs = Directory.GetDirectories(path).Where(Visible).Select(d => (Path: d, Dir: true));
+                var settings = IdeServices.Settings;
+                var excluded = settings.ShowExcludedFolders ? new HashSet<string>() : settings.ExcludedFolderSet();
+                var dirs = Directory.GetDirectories(path).Where(Visible).Where(d => !excluded.Contains(Path.GetFileName(d))).Select(d => (Path: d, Dir: true));
                 var files = Directory.GetFiles(path).Where(Visible).Select(f => (Path: f, Dir: false));
-                return dirs.OrderBy(d => Path.GetFileName(d.Path), StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderBy(f => Path.GetFileName(f.Path), StringComparer.OrdinalIgnoreCase))
+                var all = dirs.Concat(files);
+                return (settings.FoldersFirst ? all.OrderBy(e => e.Dir ? 0 : 1) : all.OrderBy(_ => 0))
+                    .ThenBy(e => Path.GetFileName(e.Path), StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
             catch

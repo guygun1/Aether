@@ -3,3 +3,5 @@ obj/
 *.user
 .vs/
 .idea/
+artifacts/
+.aether/workspace.json
