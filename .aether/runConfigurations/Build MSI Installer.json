@@ -1,9 +1,10 @@
 {
   "name": "Build MSI Installer",
   "type": "shell",
-  "command": "powershell -NoProfile -ExecutionPolicy Bypass -File installer/build.ps1",
+  "command": "dotnet build installer/Aether.Installer.wixproj -c Release -p:ProductVersion=0.1.0 -nologo",
   "workingDirectory": "${workspaceFolder}",
   "kind": "build",
+  "beforeLaunch": ["Publish Aether"],
   "saveBefore": true,
   "activateToolWindow": true
 }

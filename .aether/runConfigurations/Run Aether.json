@@ -1,7 +1,7 @@
 {
   "name": "Run Aether",
   "type": "shell",
-  "command": "dotnet run --project src\MultiIde",
+  "command": "dotnet run --project src/MultiIde",
   "workingDirectory": "${workspaceFolder}",
   "kind": "run",
   "saveBefore": true,

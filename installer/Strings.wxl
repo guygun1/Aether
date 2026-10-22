@@ -1,0 +1,8 @@
+<!-- Overrides of the stock WixUI texts so the wizard says "Update" when Aether is already installed. -->
+<WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Bigger}[AETHER_WELCOME_TITLE]" />
+  <String Id="WelcomeDlgDescription" Value="[AETHER_WELCOME_TEXT]" />
+  <String Id="VerifyReadyDlgInstallTitle" Value="{\WixUI_Font_Title}[AETHER_READY_TITLE]" />
+  <String Id="VerifyReadyDlgInstallText" Value="[AETHER_READY_TEXT]" />
+  <String Id="VerifyReadyDlgInstall" Value="[AETHER_ACTION]" />
+</WixLocalization>

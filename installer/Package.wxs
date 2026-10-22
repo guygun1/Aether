@@ -11,8 +11,26 @@
            Scope="perUser"
            Compressed="yes">
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Aether is already installed." />
+    <!-- Running the installer while Aether is installed updates it in place (same version included). -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Aether is already installed." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Updates reuse the folder the previous version was installed to. -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="PreviousInstallFolder" Root="HKCU" Key="Software\Aether" Name="InstallFolder" Type="raw" />
+    </Property>
+
+    <!-- Wizard text: "install" normally, "update" when an existing install was found (see Strings.wxl). -->
+    <Property Id="AETHER_WELCOME_TITLE" Value="Welcome to the Aether Setup Wizard" />
+    <Property Id="AETHER_WELCOME_TEXT" Value="The Setup Wizard will install Aether on your computer. Click Next to continue or Cancel to exit." />
+    <Property Id="AETHER_READY_TITLE" Value="Ready to install Aether" />
+    <Property Id="AETHER_READY_TEXT" Value="Click Install to begin the installation. Click Back to review or change any of your installation settings. Click Cancel to exit the wizard." />
+    <Property Id="AETHER_ACTION" Value="&amp;Install" />
+    <SetProperty Id="AETHER_WELCOME_TITLE" Value="Update Aether" After="FindRelatedProducts" Sequence="ui" Condition="WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="AETHER_WELCOME_TEXT" Value="Aether is already installed. Setup will update it to version [ProductVersion] and keep your settings, plugins and projects. Close Aether, then click Next to continue." After="FindRelatedProducts" Sequence="ui" Condition="WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="AETHER_READY_TITLE" Value="Ready to update Aether" After="FindRelatedProducts" Sequence="ui" Condition="WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="AETHER_READY_TEXT" Value="Click Update to replace the installed version with [ProductVersion]. Click Cancel to exit the wizard." After="FindRelatedProducts" Sequence="ui" Condition="WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="AETHER_ACTION" Value="&amp;Update" After="FindRelatedProducts" Sequence="ui" Condition="WIX_UPGRADE_DETECTED" />
 
     <Icon Id="AetherIcon" SourceFile="$(var.RepoRoot)\src\MultiIde\Assets\aether.ico" />
     <Property Id="ARPPRODUCTICON" Value="AetherIcon" />
@@ -27,6 +45,9 @@
     <UI>
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchAether"
                Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed" />
+      <!-- Updating skips the license and folder pages: Welcome → Ready to update. -->
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="10" Condition="WIX_UPGRADE_DETECTED" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="10" Condition="WIX_UPGRADE_DETECTED" />
     </UI>
 
     <StandardDirectory Id="LocalAppDataFolder">
@@ -69,6 +90,7 @@
         <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
         <RemoveFolder Id="RemoveProgramsFolder" Directory="ProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\Aether" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\Aether" Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" />
       </Component>
     </StandardDirectory>
   </Package>

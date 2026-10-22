@@ -1,0 +1,9 @@
+{
+  "name": "Publish Aether",
+  "type": "shell",
+  "command": "(if exist artifacts\\publish rmdir /s /q artifacts\\publish) && dotnet publish src/MultiIde/MultiIde.csproj -c Release -r win-x64 --self-contained true -p:PublishReadyToRun=true -p:Version=0.1.0 -o artifacts/publish -nologo",
+  "workingDirectory": "${workspaceFolder}",
+  "kind": "build",
+  "saveBefore": true,
+  "activateToolWindow": true
+}

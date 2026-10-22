@@ -1,7 +1,7 @@
 <Project Sdk="WixToolset.Sdk/5.0.2">
   <!--
     Builds Aether-<version>-x64.msi from a self-contained publish.
-    Run installer\build.ps1 (publishes first), or:
+    In Aether, run the "Build MSI Installer" configuration (it runs "Publish Aether" first), or:
       dotnet build installer\Aether.Installer.wixproj -c Release -p:PublishDir=<path to publish>
   -->
   <PropertyGroup>
@@ -13,9 +13,15 @@
     <InstallerPlatform>x64</InstallerPlatform>
     <OutputPath>$(MSBuildThisFileDirectory)..\artifacts\installer\</OutputPath>
     <!-- Per-user installs keep files under %LocalAppData%; these ICEs assume per-machine layout. -->
-    <SuppressIces>ICE38;ICE64;ICE91</SuppressIces>
+    <!-- ICE61: same-version upgrades are intentional so rebuilt installers update in place. -->
+    <SuppressIces>ICE38;ICE61;ICE64;ICE91</SuppressIces>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
   </ItemGroup>
+  <!-- Strings.wxl makes WiX write to an en-US subfolder; keep the .msi at artifacts\installer\. -->
+  <Target Name="FlattenCultureOutput" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)en-US\$(OutputName).msi" DestinationFolder="$(OutputPath)" />
+    <RemoveDir Directories="$(OutputPath)en-US" />
+  </Target>
 </Project>
