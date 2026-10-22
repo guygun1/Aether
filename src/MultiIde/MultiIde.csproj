@@ -7,6 +7,7 @@
     <AssemblyName>Aether</AssemblyName>
     <Product>Aether</Product>
     <Title>Aether IDE</Title>
+    <Copyright>Copyright (c) 2026 guyde. MIT License.</Copyright>
     <ApplicationIcon>Assets\aether.ico</ApplicationIcon>
     <RootNamespace>MultiIde</RootNamespace>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
