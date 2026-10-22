@@ -27,6 +27,12 @@ public partial class App : Application
             ThemeManager.Apply(IdeServices.Settings.Theme, IdeServices.Plugins);
             Anim.ApplyGlobalStyles();
             Anim.InstallPopupAnimations();
+            CrashReports.Recovered += OnRecoveredFromError;
+            if (CrashReports.TakeLastFatal() is { } lastCrash)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => ActiveWindow?.ShowBalloon("Aether closed unexpectedly last time",
+                    "A crash report was saved. Sharing it helps fix the problem.",
+                    true, ("Open report", () => OpenFile(lastCrash)), ("Show folder", () => CrashReports.OpenFolder(lastCrash))),
+                    Avalonia.Threading.DispatcherPriority.Background);
             // Usage: MultiIde [folder] [file[:line]]
             if (desktop.Args is { Length: > 0 } args && Directory.Exists(args[0]))
             {
@@ -58,6 +64,30 @@ public partial class App : Application
     }
 
     private static IEnumerable<Window> Windows => Desktop?.Windows ?? (IEnumerable<Window>)Array.Empty<Window>();
+
+    private static IdeWindow? ActiveWindow =>
+        Windows.OfType<IdeWindow>().FirstOrDefault(w => w.IsActive) ?? Desktop?.MainWindow as IdeWindow ?? Windows.OfType<IdeWindow>().FirstOrDefault();
+
+    private static DateTime _lastErrorBalloon;
+
+    /// <summary>Aether caught an error and kept running: tell the user once in a while, with the report.</summary>
+    private static void OnRecoveredFromError(string report, Exception ex)
+    {
+        if (DateTime.UtcNow - _lastErrorBalloon < TimeSpan.FromSeconds(15)) return;
+        _lastErrorBalloon = DateTime.UtcNow;
+        ActiveWindow?.ShowBalloon("Aether hit an error and recovered",
+            $"{CrashReports.Summary(ex)}. Your work is safe; a report was saved.",
+            true, ("Open report", () => OpenFile(report)), ("Show folder", () => CrashReports.OpenFolder(report)));
+    }
+
+    /// <summary>Opens a report in the active project window's editor, or with the system viewer.</summary>
+    private static void OpenFile(string path)
+    {
+        if ((Windows.OfType<MainWindow>().FirstOrDefault(w => w.IsActive) ?? Windows.OfType<MainWindow>().FirstOrDefault()) is { } main)
+            _ = main.OpenFileAsync(path);
+        else
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); } catch { /* no viewer */ }
+    }
 
     /// <summary>Opens a project in its own window (or focuses it if already open) and closes the Welcome window.</summary>
     public static void OpenProject(string path, string? file = null, Window? from = null)

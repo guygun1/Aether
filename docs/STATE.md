@@ -83,6 +83,12 @@ The OpenGL / graphics options are template options on the existing C++, C# and R
 - ✅ Linux (x64, arm64) and macOS (Apple Silicon, Intel) packages, built from Windows with the "Package …" run configurations. They have not been tested on real Linux or Mac machines yet.
 - ❌ No auto-update inside the app, and no code signing or notarization yet, so SmartScreen and Gatekeeper warn on first run.
 
+## Reliability
+
+- ✅ Crash reports in `~/.aether/crash-reports` (version, OS, what was being edited, full stack trace; the newest 50 are kept).
+- ✅ An error on the UI thread, e.g. while typing, is reported and Aether keeps running. A notification links to the report.
+- ✅ After a fatal crash, the next start says so and links to the report. Help → Show Crash Reports opens the folder.
+
 ## Known limitations
 
 - **No automated tests.** Changes are verified by building and using the app.

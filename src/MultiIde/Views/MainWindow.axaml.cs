@@ -351,6 +351,10 @@ public partial class MainWindow : IdeWindow
         Act("keymapSettings", "Keymap…", "File", null, () => OpenSettings("Keymap"));
 
         Act("keymap", "Keymap Reference", "Help", null, ShowKeymap);
+        Act("crashReports", "Show Crash Reports", "Help", null, () => CrashReports.OpenFolder());
+        // Crash reports say what was being edited (the window that last had focus).
+        Activated += (_, _) => CrashReports.Context = () =>
+            _active is { } v ? $"editing {Path.GetFileName(v.Doc.FilePath)} ({v.Doc.LanguageId}), server: {v.Doc.Lsp?.Config.Name ?? "none"}" : _root;
         Act("about", "About Aether", "Help", null, () => Notify("Aether 0.1 — a fast, plugin-driven IDE. Plugins live in ~/.aether/plugins."));
     }
 

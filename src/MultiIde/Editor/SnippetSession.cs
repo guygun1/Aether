@@ -28,9 +28,21 @@ public static class SnippetSyntax
 
     public static ParsedSnippet Parse(string body, Context ctx)
     {
+        // Normalize first: the end index must be the normalized length (CRLF bodies used to read past the end).
+        var text = body.Replace("\r\n", "\n");
         var result = new ParsedSnippet();
         var sb = new StringBuilder();
-        Parse(body.Replace("\r\n", "\n"), 0, body.Length, sb, result, ctx);
+        try
+        {
+            Parse(text, 0, text.Length, sb, result, ctx);
+        }
+        catch (Exception)
+        {
+            // Malformed snippet syntax: insert it as plain text rather than failing the completion.
+            result = new ParsedSnippet();
+            sb.Clear();
+            Append(sb, text, ctx);
+        }
         result.Text = sb.ToString();
         return result;
     }
@@ -84,6 +96,12 @@ public static class SnippetSyntax
                 continue;
             }
             var close = FindClose(s, i + 2, to);
+            if (close < 0)
+            {
+                // Unclosed "${": literal text.
+                Append(sb, s[i..to], ctx);
+                return;
+            }
             var inner = s[(i + 2)..close];
             if (inner.Length > 0 && char.IsDigit(inner[0]))
             {
@@ -155,7 +173,7 @@ public static class SnippetSyntax
                 depth--;
             }
         }
-        return to - 1;
+        return -1; // unclosed
     }
 }
 
