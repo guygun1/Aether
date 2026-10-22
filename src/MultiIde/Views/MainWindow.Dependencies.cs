@@ -32,6 +32,7 @@ public partial class MainWindow
     private async Task RefreshDependenciesAsync()
     {
         if (_depsList is null || _root is null) return;
+        _ = RefreshExternalLibrariesAsync();
         var root = _root;
         var managers = Plugins.DependencyManagers().ToList();
         var found = await Task.Run(() => managers.SelectMany(m =>

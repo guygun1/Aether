@@ -68,6 +68,7 @@ public partial class MainWindow : IEditorHost
         ShowEmptyEditor();
         if (Settings.RestoreSession) _ = RestoreSessionAsync();
         ProjectOptionsButton();
+        _ = RefreshExternalLibrariesAsync();
         _ = RefreshGitAsync();
         UpdateStatusBar();
     }
@@ -541,6 +542,7 @@ public partial class MainWindow : IEditorHost
             Toggle("Folders Always on Top", Settings.FoldersFirst, v => Settings.FoldersFirst = v, reload: true);
             Toggle("Show Hidden Files", Settings.ShowHiddenFiles, v => Settings.ShowHiddenFiles = v, reload: true);
             Toggle("Show Excluded Folders", Settings.ShowExcludedFolders, v => Settings.ShowExcludedFolders = v, reload: true);
+            Toggle("Show External Libraries", Settings.ShowExternalLibraries, v => { Settings.ShowExternalLibraries = v; _ = RefreshExternalLibrariesAsync(); });
             menu.Items.Add(new Separator());
             var select = new MenuItem { Header = "     Select Opened File" };
             select.Click += (_, _) => { if (_active is not null) SelectInTree(_active.Doc.FilePath, force: true); };

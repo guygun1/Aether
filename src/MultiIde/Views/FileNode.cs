@@ -62,12 +62,19 @@ public sealed class FileNode : INotifyPropertyChanged
     public string Name { get; private set; }
     public string FullPath { get; private set; }
     public bool IsDirectory { get; }
-    public string Glyph { get; } = "";
+    public string Glyph { get; init; } = "";
     public string Badge { get; } = "";
     public bool HasBadge { get; }
-    public IBrush IconBrush { get; }
+    public IBrush IconBrush { get; init; }
     public IBrush NameBrush { get; }
     public ObservableCollection<FileNode> Children { get; } = new();
+
+    /// <summary>Virtual group (e.g. "External Libraries"): shows these nodes instead of a folder's contents.</summary>
+    public IReadOnlyList<FileNode>? FixedChildren { get; init; }
+    /// <summary>Runs before the first load and returns the folder to show (e.g. decompile a DLL); null shows nothing.</summary>
+    public Func<Task<string?>>? BeforeLoad { get; init; }
+    /// <summary>Set by the project window: turns a library DLL into an expandable, decompiled node.</summary>
+    public static Func<string, Task<string?>>? DllExpander { get; set; }
 
     public bool IsExpanded
     {
@@ -85,6 +92,18 @@ public sealed class FileNode : INotifyPropertyChanged
     {
         if (!IsDirectory) return;
         _loaded = true;
+        if (FixedChildren is not null)
+        {
+            Children.Clear();
+            foreach (var c in FixedChildren) Children.Add(c);
+            return;
+        }
+        if (BeforeLoad is not null)
+        {
+            var prepared = await BeforeLoad();
+            if (prepared is null) { Children.Clear(); _loaded = false; return; }
+            FullPath = prepared;
+        }
         var path = FullPath;
         var entries = await Task.Run(() =>
         {
@@ -120,7 +139,11 @@ public sealed class FileNode : INotifyPropertyChanged
             }
             else
             {
-                Children.Add(new FileNode(Path.GetFileName(p), p, dir, _plugins));
+                var name = Path.GetFileName(p);
+                if (!dir && DllExpander is { } expand && name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && IdePaths.IsLibraryPath(p))
+                    Children.Add(new FileNode(name, p, true, _plugins) { Glyph = "", IconBrush = ThemeManager.Brush("Link"), BeforeLoad = () => expand(p) });
+                else
+                    Children.Add(new FileNode(name, p, dir, _plugins));
             }
         }
     }

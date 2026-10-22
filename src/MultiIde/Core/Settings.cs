@@ -73,6 +73,7 @@ public sealed class Settings
     public bool AutoscrollFromSource { get; set; } = true;
     public bool FoldersFirst { get; set; } = true;
     public bool ShowExcludedFolders { get; set; } = true;
+    public bool ShowExternalLibraries { get; set; } = true;
     public List<string> DisabledPlugins { get; set; } = new();
     /// <summary>Values of plugin-declared settings: pluginId → key → value.</summary>
     public Dictionary<string, Dictionary<string, System.Text.Json.Nodes.JsonNode?>> PluginSettings { get; set; } = new();
