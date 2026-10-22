@@ -23,7 +23,30 @@ public partial class MainWindow : IEditorHost
     private readonly List<EditorView> _views = new();
     private EditorView? _active;
     private readonly List<string> _recentFiles = new();
-    private readonly Dictionary<string, (string Path, List<LspDiagnostic> Items)> _diagnostics = new();
+    /// <summary>Latest diagnostics per (server, file): each server replaces only its own, and loses them when it stops.</summary>
+    private readonly Dictionary<string, (string Path, string PathKey, string Server, List<LspDiagnostic> Items)> _diagnostics = new();
+
+    private static string DiagnosticsKey(string server, string pathKey) => server + "\n" + pathKey;
+
+    /// <summary>All servers' diagnostics for one file.</summary>
+    private List<LspDiagnostic> DiagnosticsFor(string pathKey) =>
+        _diagnostics.Values.Where(d => d.PathKey == pathKey).SelectMany(d => d.Items).ToList();
+
+    /// <summary>Pushes a file's current diagnostics to its editor, the Problems list, tabs and status bar.</summary>
+    private void DiagnosticsChangedFor(string pathKey)
+    {
+        if (_views.FirstOrDefault(v => IdePaths.Key(v.Doc.FilePath) == pathKey) is { } view) view.Doc.SetDiagnostics(DiagnosticsFor(pathKey));
+        ScheduleProblemsRefresh();
+        if (_active?.Doc is { } d && IdePaths.Key(d.FilePath) == pathKey) UpdateStatusBar();
+    }
+
+    /// <summary>A server stopped, crashed or restarted: its old diagnostics are no longer true.</summary>
+    private void ClearServerDiagnostics(string server)
+    {
+        var gone = _diagnostics.Where(kv => kv.Value.Server == server).ToList();
+        foreach (var (key, _) in gone) _diagnostics.Remove(key);
+        foreach (var pathKey in gone.Select(g => g.Value.PathKey).Distinct()) DiagnosticsChangedFor(pathKey);
+    }
     private readonly HashSet<string> _reportedServers = new();
     private readonly ConcurrentDictionary<string, byte> _fsDirtyDirs = new();
     private readonly ConcurrentDictionary<string, byte> _fsChangedFiles = new();
@@ -468,7 +491,7 @@ public partial class MainWindow : IEditorHost
         var insertAt = _active is null ? _views.Count : _views.IndexOf(_active) + 1;
         _views.Insert(insertAt, view);
 
-        if (_diagnostics.TryGetValue(IdePaths.Key(path), out var known)) doc.SetDiagnostics(known.Items);
+        if (DiagnosticsFor(IdePaths.Key(path)) is { Count: > 0 } known) doc.SetDiagnostics(known);
         if (doc.IsLarge) Notify($"{doc.Name} is large; code insight is turned off for this file to keep the editor fast.");
         if (IdePaths.IsLibraryPath(path)) view.Editor.IsReadOnly = true; // dependency / decompiled source
         if (!path.StartsWith(IdePaths.Decompiled, StringComparison.OrdinalIgnoreCase)) _ = AttachLspAsync(doc);
@@ -514,15 +537,19 @@ public partial class MainWindow : IEditorHost
 
     private void WireLspClient(LspClient client)
     {
+        var server = client.Config.Id;
         client.Diagnostics += (path, items) => Dispatcher.UIThread.Post(() =>
         {
-            var key = IdePaths.Key(path);
+            var pathKey = IdePaths.Key(path);
+            var key = DiagnosticsKey(server, pathKey);
             if (items.Count == 0) _diagnostics.Remove(key);
-            else _diagnostics[key] = (path, items);
-            FindView(path)?.Doc.SetDiagnostics(items);
-            ScheduleProblemsRefresh();
-            if (_active?.Doc is { } d && IdePaths.Key(d.FilePath) == key) UpdateStatusBar();
+            else _diagnostics[key] = (path, pathKey, server, items);
+            DiagnosticsChangedFor(pathKey);
         });
+        client.StateChanged += () =>
+        {
+            if (client.State is not ServerState.Running) Dispatcher.UIThread.Post(() => ClearServerDiagnostics(server));
+        };
         client.Log += line => AppendLog($"[{client.Config.Name}] {line}");
         client.ShowMessage += (type, message) => Dispatcher.UIThread.Post(() =>
         {

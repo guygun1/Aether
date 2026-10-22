@@ -58,6 +58,10 @@ public sealed partial class EditorView : UserControl
     private readonly TextMate.Installation? _textMate;
     private readonly FoldingManager? _folding;
     private readonly DiagnosticRenderer _diagnostics = new();
+    /// <summary>Squiggle ranges, kept in a document-connected collection so they move with edits.</summary>
+    private TextSegmentCollection<TextSegment>? _diagnosticSegments;
+    /// <summary>New diagnostics arrived while the typing-pause timer ran; apply them when it fires.</summary>
+    private bool _diagnosticsPending;
     private readonly BracketHighlightRenderer _brackets = new();
     private readonly IndentGuideRenderer _indentGuides = new();
     private readonly OccurrenceRenderer _occurrences = new();
@@ -169,7 +173,10 @@ public sealed partial class EditorView : UserControl
         {
             _diagnosticsTimer!.Stop();
             _diagnostics.HiddenLine = -1;
-            RefreshDiagnostics();
+            // Only re-read the server's line/column positions if it sent something new; the existing
+            // squiggles already moved with the edits, while old positions would point at the wrong text.
+            if (_diagnosticsPending) RefreshDiagnostics();
+            else Editor.TextArea.TextView.InvalidateLayer(_diagnostics.Layer);
         });
         _hideTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(350), DispatcherPriority.Normal, (_, _) =>
         {
@@ -222,7 +229,8 @@ public sealed partial class EditorView : UserControl
         {
             RefreshStripe();
             // While the typing-pause timer runs, its tick applies the latest diagnostics.
-            if (!_diagnosticsTimer.IsEnabled) RefreshDiagnostics();
+            if (_diagnosticsTimer.IsEnabled) _diagnosticsPending = true;
+            else RefreshDiagnostics();
         });
         ThemeManager.Changed += OnThemeChanged;
         ApplySettings(settings);
@@ -300,7 +308,10 @@ public sealed partial class EditorView : UserControl
 
     private void RefreshDiagnostics()
     {
+        _diagnosticsPending = false;
         _diagnostics.Marks.Clear();
+        _diagnosticSegments ??= new TextSegmentCollection<TextSegment>(Doc.Text);
+        _diagnosticSegments.Clear();
         foreach (var d in Doc.Diagnostics)
         {
             var start = Doc.OffsetOf(d.StartLine, d.StartCol);
@@ -312,7 +323,9 @@ public sealed partial class EditorView : UserControl
                 if (end == start) end = Math.Min(start + 1, Doc.Text.TextLength);
             }
             var unnecessary = (d.Raw["tags"] as JsonArray)?.Any(t => t?.GetValue<int>() == 1) == true;
-            _diagnostics.Marks.Add((new TextSegment { StartOffset = start, EndOffset = end }, d.Severity, unnecessary && d.Severity >= 3));
+            var segment = new TextSegment { StartOffset = start, EndOffset = end };
+            _diagnosticSegments.Add(segment);
+            _diagnostics.Marks.Add((segment, d.Severity, unnecessary && d.Severity >= 3));
         }
         Editor.TextArea.TextView.InvalidateLayer(_diagnostics.Layer);
     }

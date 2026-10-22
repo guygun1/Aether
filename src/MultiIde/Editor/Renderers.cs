@@ -32,6 +32,7 @@ public sealed class DiagnosticRenderer : IBackgroundRenderer
 
         foreach (var (segment, severity, unnecessary) in Marks)
         {
+            if (segment.Length == 0) continue; // the marked text was deleted
             if (HiddenLine > 0 && textView.Document is { } doc && segment.StartOffset <= doc.TextLength &&
                 doc.GetLineByOffset(Math.Min(segment.StartOffset, doc.TextLength)).LineNumber == HiddenLine) continue;
             if (segment.EndOffset < viewStart || segment.StartOffset > viewEnd) continue;

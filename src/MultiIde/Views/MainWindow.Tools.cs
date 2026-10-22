@@ -149,6 +149,11 @@ public partial class MainWindow
 
     private void RefreshProblems()
     {
+        // Files deleted since their diagnostics arrived have no problems any more.
+        foreach (var gone in _diagnostics.Where(kv => !File.Exists(kv.Value.Path)).Select(kv => kv.Key).ToList()) _diagnostics.Remove(gone);
+        // Tabs and the toolbar badge show errors too: refresh them even when the Problems window was never opened.
+        BuildTabs();
+        RefreshToolbarState();
         if (_problemsList is null) return;
         var items = _diagnostics.Values
             .SelectMany(d => d.Items.Select(i => new ResultItem(d.Path, Rel(d.Path), i.StartLine + 1, i.StartCol + 1,
@@ -158,11 +163,9 @@ public partial class MainWindow
             .Take(5000)
             .ToList();
         _problemsList.ItemsSource = items;
-        RefreshToolbarState();
         var errors = items.Count(i => i.Severity == 1);
         _bottomTools["problems"] = ($"Problems  {errors} errors, {items.Count - errors} warnings", _problemsList, Array.Empty<Control>());
         if (_bottomTool == "problems") BottomTitle.Text = _bottomTools["problems"].Title;
-        BuildTabs();
     }
 
     private string Rel(string path) => _root is null ? path : Path.GetRelativePath(_root, path).Replace('\\', '/');
