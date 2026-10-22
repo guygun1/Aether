@@ -40,4 +40,4 @@ installer/         WiX project for the per-user MSI
 
 ## License
 
-[MIT](LICENSE) © 2026 guyde
+[MIT](LICENSE.md) © 2026 guyde
