@@ -30,6 +30,31 @@ public partial class MainWindow
         return (p.ExitCode, ((await stdout) + (await stderr)).Trim());
     }
 
+    /// <summary>
+    /// Git refuses to commit without a name and email ("Author identity unknown"). Like IntelliJ, ask for them
+    /// once and save them globally. Returns false if the user cancels.
+    /// </summary>
+    private async Task<bool> EnsureGitIdentityAsync()
+    {
+        var name = await GitExecAsync("config", "user.name");
+        var email = await GitExecAsync("config", "user.email");
+        if (name.Code == 0 && name.Output.Length > 0 && email.Code == 0 && email.Output.Length > 0) return true;
+
+        var newName = name.Code == 0 && name.Output.Length > 0 ? name.Output
+            : await PromptAsync("Git needs your name for commits (saved for all repositories)", Environment.UserName);
+        if (string.IsNullOrWhiteSpace(newName)) return false;
+        var newEmail = email.Code == 0 && email.Output.Length > 0 ? email.Output
+            : await PromptAsync("Git needs your email for commits (saved for all repositories)", "");
+        if (string.IsNullOrWhiteSpace(newEmail)) return false;
+
+        foreach (var (key, value) in new[] { ("user.name", newName.Trim()), ("user.email", newEmail.Trim()) })
+        {
+            var set = await GitExecAsync("config", "--global", key, value);
+            if (set.Code != 0) { Notify(set.Output, true); return false; }
+        }
+        return true;
+    }
+
     private void GitRun(string args)
     {
         if (!RequireGit()) return;
@@ -138,6 +163,7 @@ public partial class MainWindow
             if (string.IsNullOrWhiteSpace(message.Text) && amend.IsChecked != true) { Notify("Write a commit message.", true); return; }
             _overlayCancel = null;
             CloseOverlay();
+            if (!await EnsureGitIdentityAsync()) { Notify("Commit cancelled: Git needs a name and email.", true); return; }
             var add = await GitExecAsync(new[] { "add", "-A", "--" }.Concat(files).ToArray());
             if (add.Code != 0) { Notify(add.Output, true); return; }
             var msgFile = Path.GetTempFileName();
@@ -314,6 +340,7 @@ public partial class MainWindow
             if (!IsGitRepo) await GitInitAsync();
             if ((await GitExecAsync("rev-parse", "HEAD")).Code != 0)
             {
+                if (!await EnsureGitIdentityAsync()) { Notify("Sharing cancelled: Git needs a name and email for the first commit.", true); return; }
                 await GitExecAsync("add", "-A");
                 var first = await GitExecAsync("commit", "-m", "Initial commit");
                 if (first.Code != 0) { Notify(first.Output, true); return; }
