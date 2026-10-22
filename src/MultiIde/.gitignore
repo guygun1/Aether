@@ -1,0 +1,7 @@
+bin/
+obj/
+target/
+build/
+.vs/
+.idea/
+.aether/workspace.json

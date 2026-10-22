@@ -59,6 +59,9 @@ public sealed class EditorView : UserControl
     private readonly BracketHighlightRenderer _brackets = new();
     private readonly IndentGuideRenderer _indentGuides = new();
     private readonly OccurrenceRenderer _occurrences = new();
+    private readonly LinkUnderlineRenderer _link = new();
+    private Point? _lastPointer;
+    private int _linkProbe;
     private bool _bracketsEnabled = true;
     private readonly Popup _popup;
     private readonly DispatcherTimer _foldTimer;
@@ -120,6 +123,7 @@ public sealed class EditorView : UserControl
         area.TextView.BackgroundRenderers.Add(_occurrences);
         area.TextView.BackgroundRenderers.Add(_diagnostics);
         area.TextView.BackgroundRenderers.Add(_brackets);
+        area.TextView.BackgroundRenderers.Add(_link);
         area.IndentationStrategy = new SmartIndentationStrategy { IndentUnit = o.IndentationString };
         area.RightClickMovesCaret = true;
         Editor.SearchResultsBrush = ThemeManager.Brush("EditorSearchMatch");
@@ -174,6 +178,17 @@ public sealed class EditorView : UserControl
         area.TextEntered += OnTextEntered;
         area.AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         area.AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+        // Ctrl+hover: underline symbols that Ctrl+click can navigate to.
+        area.AddHandler(PointerMovedEvent, (_, e) =>
+        {
+            _lastPointer = e.GetPosition(Editor);
+            if (e.KeyModifiers.HasFlag(KeyModifiers.Control)) _ = UpdateLinkAsync();
+            else ClearLink();
+        }, RoutingStrategies.Tunnel);
+        area.PointerExited += (_, _) => { _lastPointer = null; ClearLink(); };
+        area.AddHandler(KeyDownEvent, (_, e) => { if (e.Key is Key.LeftCtrl or Key.RightCtrl) _ = UpdateLinkAsync(); }, RoutingStrategies.Tunnel);
+        area.AddHandler(KeyUpEvent, (_, e) => { if (e.Key is Key.LeftCtrl or Key.RightCtrl) ClearLink(); }, RoutingStrategies.Tunnel);
+        area.LostFocus += (_, _) => ClearLink();
         area.Caret.PositionChanged += (_, _) =>
         {
             if (_bracketsEnabled) _brackets.Update(Doc.Text, area.Caret.Offset);
@@ -900,6 +915,45 @@ public sealed class EditorView : UserControl
     }
 
     // ---- Language server actions --------------------------------------------
+
+    /// <summary>Asks the language server whether the word under the mouse has a declaration; if so, underlines it.</summary>
+    private async Task UpdateLinkAsync()
+    {
+        if (_lastPointer is not { } point || Doc.Lsp is not { } lsp || !lsp.Has("definitionProvider")) { ClearLink(); return; }
+        var pos = Editor.GetPositionFromPoint(point);
+        if (pos is null) { ClearLink(); return; }
+        var offset = Doc.Text.GetOffset(pos.Value.Location);
+        var start = WordStart(offset);
+        var end = offset;
+        while (end < Doc.Text.TextLength && IsIdent(Doc.Text.GetCharAt(end))) end++;
+        if (end <= start) { ClearLink(); return; }
+        if (_link.Segment is { } current && current.StartOffset == start && current.EndOffset == end) return;
+
+        var probe = ++_linkProbe;
+        var version = _editVersion;
+        try
+        {
+            var result = await lsp.RequestAsync("textDocument/definition", Doc.PositionParams(start));
+            if (probe != _linkProbe || version != _editVersion) return; // the mouse moved on, or the text changed
+            if (ParseLocations(result).Count == 0) { ClearLink(); return; }
+            _link.Segment = new TextSegment { StartOffset = start, EndOffset = end };
+            Editor.TextArea.TextView.Cursor = new Cursor(StandardCursorType.Hand);
+            Editor.TextArea.TextView.InvalidateLayer(_link.Layer);
+        }
+        catch
+        {
+            // Server busy or no answer: no underline.
+        }
+    }
+
+    private void ClearLink()
+    {
+        _linkProbe++;
+        if (_link.Segment is null) return;
+        _link.Segment = null;
+        Editor.TextArea.TextView.Cursor = Cursor.Default;
+        Editor.TextArea.TextView.InvalidateLayer(_link.Layer);
+    }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {

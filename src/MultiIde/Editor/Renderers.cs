@@ -66,6 +66,31 @@ public sealed class DiagnosticRenderer : IBackgroundRenderer
     }
 }
 
+/// <summary>Ctrl+hover link: a glowing blue underline under a symbol that Ctrl+click can navigate to.</summary>
+public sealed class LinkUnderlineRenderer : IBackgroundRenderer
+{
+    public TextSegment? Segment { get; set; }
+    public KnownLayer Layer => KnownLayer.Selection;
+
+    public void Draw(TextView textView, DrawingContext ctx)
+    {
+        if (Segment is not { } segment || !textView.VisualLinesValid) return;
+        var color = ThemeManager.Color("Link");
+        var glowWide = new Pen(new SolidColorBrush(color, 0.18), 6, lineCap: PenLineCap.Round);
+        var glowNear = new Pen(new SolidColorBrush(color, 0.35), 3, lineCap: PenLineCap.Round);
+        var line = new Pen(new SolidColorBrush(color), 1.4, lineCap: PenLineCap.Round);
+        foreach (var r in BackgroundGeometryBuilder.GetRectsForSegment(textView, segment, false))
+        {
+            var y = r.Bottom - 1.5;
+            var a = new Point(r.Left + 0.5, y);
+            var b = new Point(r.Right - 0.5, y);
+            ctx.DrawLine(glowWide, a, b);
+            ctx.DrawLine(glowNear, a, b);
+            ctx.DrawLine(line, a, b);
+        }
+    }
+}
+
 /// <summary>Thin vertical lines at each indentation level.</summary>
 public sealed class IndentGuideRenderer : IBackgroundRenderer
 {

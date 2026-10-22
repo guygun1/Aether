@@ -47,6 +47,8 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+
+
     private static (string? File, int? Line) ParseFileArg(string folder, string arg)
     {
         int? line = null;
