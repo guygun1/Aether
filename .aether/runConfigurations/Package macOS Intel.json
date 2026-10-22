@@ -1,0 +1,9 @@
+{
+  "name": "Package macOS Intel",
+  "type": "shell",
+  "command": "dotnet run -c Release --project tools/Packager -- clean artifacts/publish-osx-x64 && dotnet publish src/MultiIde/MultiIde.csproj -c Release -r osx-x64 --self-contained true -p:PublishReadyToRun=true -p:Version=0.1.0 -o artifacts/publish-osx-x64 -nologo && dotnet run -c Release --project tools/Packager -- mac artifacts/publish-osx-x64 artifacts/dist/Aether-0.1.0-osx-x64.tar.gz 0.1.0",
+  "workingDirectory": "${workspaceFolder}",
+  "kind": "build",
+  "saveBefore": true,
+  "activateToolWindow": true
+}

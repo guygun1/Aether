@@ -1,0 +1,16 @@
+{
+  "name": "Build All Platforms",
+  "type": "shell",
+  "command": "dotnet run -c Release --project tools/Packager -- list artifacts/installer artifacts/dist",
+  "workingDirectory": "${workspaceFolder}",
+  "kind": "build",
+  "beforeLaunch": [
+    "Build MSI Installer",
+    "Package Linux x64",
+    "Package Linux arm64",
+    "Package macOS Apple Silicon",
+    "Package macOS Intel"
+  ],
+  "saveBefore": true,
+  "activateToolWindow": true
+}

@@ -80,7 +80,8 @@ The OpenGL / graphics options are template options on the existing C++, C# and R
 
 - ✅ Per-user MSI (no admin rights needed), with Start menu and desktop shortcuts.
 - ✅ Running a newer (or rebuilt) MSI over an existing install updates it in place.
-- ❌ No auto-update inside the app, and no code signing yet, so SmartScreen will warn on first run.
+- ✅ Linux (x64, arm64) and macOS (Apple Silicon, Intel) packages, built from Windows with the "Package …" run configurations. They have not been tested on real Linux or Mac machines yet.
+- ❌ No auto-update inside the app, and no code signing or notarization yet, so SmartScreen and Gatekeeper warn on first run.
 
 ## Known limitations
 

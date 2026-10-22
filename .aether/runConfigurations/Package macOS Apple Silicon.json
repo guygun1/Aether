@@ -1,0 +1,9 @@
+{
+  "name": "Package macOS Apple Silicon",
+  "type": "shell",
+  "command": "dotnet run -c Release --project tools/Packager -- clean artifacts/publish-osx-arm64 && dotnet publish src/MultiIde/MultiIde.csproj -c Release -r osx-arm64 --self-contained true -p:PublishReadyToRun=true -p:Version=0.1.0 -o artifacts/publish-osx-arm64 -nologo && dotnet run -c Release --project tools/Packager -- mac artifacts/publish-osx-arm64 artifacts/dist/Aether-0.1.0-osx-arm64.tar.gz 0.1.0",
+  "workingDirectory": "${workspaceFolder}",
+  "kind": "build",
+  "saveBefore": true,
+  "activateToolWindow": true
+}
