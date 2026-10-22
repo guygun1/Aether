@@ -82,6 +82,8 @@ public sealed class Settings
     public Dictionary<string, Dictionary<string, System.Text.Json.Nodes.JsonNode?>> PluginSettings { get; set; } = new();
     /// <summary>User keymap overrides: action id → shortcut ("" removes the shortcut).</summary>
     public Dictionary<string, string> Keymap { get; set; } = new();
+    /// <summary>The user's own commands (Settings → Keymap → My Commands): shell commands with an optional shortcut.</summary>
+    public List<CommandContribution> UserCommands { get; set; } = new();
     /// <summary>default, visualstudio or jetbrains (see KeymapPresets).</summary>
     public string KeymapPreset { get; set; } = "default";
     /// <summary>Code style preset: default, visualstudio or jetbrains.</summary>

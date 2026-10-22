@@ -71,7 +71,9 @@ The OpenGL / graphics options are template options on the existing C++, C# and R
 - ✅ Searchable settings page, generated from one schema.
 - ✅ Themes: Midnight, Daylight, Ember and High Contrast. VS Code theme files work too.
 - ✅ Animations can be animated or instant, with a speed slider and smooth scrolling.
-- ✅ Keymap presets (Default, Visual Studio, JetBrains), with chords and per-action rebinding.
+- ✅ Keymap presets (Default, Visual Studio, JetBrains). Any action can be rebound to several shortcuts and to two-stroke chords (Settings → Keymap).
+- ✅ My Commands: your own shell commands with a shortcut, output target and stdin input. They also show up in Find Action and the toolbar.
+- 🟡 The keymap can only be edited from a project window, not from Welcome.
 
 ## Distribution
 

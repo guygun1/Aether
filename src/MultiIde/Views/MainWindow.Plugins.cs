@@ -14,7 +14,7 @@ public partial class MainWindow
 
     private Macros.Context MacroContextFor(Plugin? plugin) => MacroContext() with { PluginDir = plugin?.Directory };
 
-    public async Task RunPluginCommandAsync(CommandContribution c, Plugin plugin)
+    public async Task RunPluginCommandAsync(CommandContribution c, Plugin? plugin)
     {
         if (c.Languages.Count > 0 && (_active is null || !c.Languages.Contains(_active.Doc.LanguageId)))
         {
@@ -278,12 +278,20 @@ public partial class MainWindow
 
     private void EnsurePluginCommandActions()
     {
-        _actions.RemoveAll(a => a.Id.StartsWith("command:"));
+        _actions.RemoveAll(a => a.Id.StartsWith("command:") || a.Id.StartsWith(UserCommandPrefix));
         foreach (var (cmd, plugin) in Plugins.Commands())
         {
             var c = cmd;
             var p = plugin;
             _actions.Add(new IdeAction("command:" + c.Id, c.Title, "Tools", c.Keys, () => _ = RunPluginCommandAsync(c, p)));
         }
+        // The user's own commands: real actions, so they work in the keymap, Find Action and the toolbar.
+        foreach (var cmd in Settings.UserCommands)
+        {
+            var c = cmd;
+            _actions.Add(new IdeAction(UserCommandPrefix + c.Id, c.Title, "My Commands", c.Keys, () => _ = RunPluginCommandAsync(c, null)));
+        }
     }
+
+    private const string UserCommandPrefix = "user:";
 }
