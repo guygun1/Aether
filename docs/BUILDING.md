@@ -32,7 +32,7 @@ Open the **repository root**, or any folder inside it. The repository's run conf
 | **Build MSI Installer** | Runs *Publish Aether* first (`beforeLaunch`), then builds `installer/Aether.Installer.wixproj` into `artifacts/installer/Aether-<version>-x64.msi` |
 | **Package Linux x64 / arm64** | Self-contained publish for `linux-x64` / `linux-arm64`, packed as `artifacts/dist/Aether-<version>-<rid>.tar.gz` |
 | **Package macOS Apple Silicon / Intel** | Self-contained publish for `osx-arm64` / `osx-x64`, packed as an `Aether.app` bundle in `artifacts/dist/Aether-<version>-<rid>.tar.gz` |
-| **Build All Platforms** | Runs all of the above, then lists the finished packages |
+| **Build Release (All Platforms)** | Runs all of the above, then copies every installer (MSI + four `.tar.gz`) into one fresh folder, `artifacts/release/`, with `SHA256SUMS.txt` |
 
 Every platform can be built from Windows, including ReadyToRun. The packaging step is a small C# tool in `tools/Packager`. It writes `.tar.gz` files, which keep Unix permissions, so the executables stay executable. It also creates the macOS `.app` bundle (`Info.plist` and icon) and the Linux desktop entry.
 

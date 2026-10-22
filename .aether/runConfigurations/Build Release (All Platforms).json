@@ -1,7 +1,7 @@
 {
-  "name": "Build All Platforms",
+  "name": "Build Release (All Platforms)",
   "type": "shell",
-  "command": "dotnet run -c Release --project tools/Packager -- list artifacts/installer artifacts/dist",
+  "command": "dotnet run -c Release --project tools/Packager -- collect artifacts/release artifacts/installer artifacts/dist",
   "workingDirectory": "${workspaceFolder}",
   "kind": "build",
   "beforeLaunch": [

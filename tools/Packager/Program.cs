@@ -15,7 +15,26 @@ if (args is ["clean", var target])
     if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
     return 0;
 }
-// list <dir>...: prints the packages in the given folders (the summary of "Build All Platforms").
+// collect <dest> <dir>...: copies every installer/package (.msi, .tar.gz) into one fresh folder with SHA256SUMS.txt.
+if (args is ["collect", var dest, .. var sources])
+{
+    if (Directory.Exists(dest)) Directory.Delete(dest, recursive: true);
+    Directory.CreateDirectory(dest);
+    var sums = new StringBuilder();
+    foreach (var f in sources.Where(Directory.Exists).SelectMany(d => Directory.EnumerateFiles(d)).Where(f => f.EndsWith(".msi") || f.EndsWith(".tar.gz")).Order())
+    {
+        var copy = Path.Combine(dest, Path.GetFileName(f));
+        File.Copy(f, copy);
+        using var stream = File.OpenRead(copy);
+        sums.Append($"{Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(stream))}  {Path.GetFileName(f)}\n");
+        Console.WriteLine($"{new FileInfo(copy).Length / 1024.0 / 1024.0,7:0.0} MB  {Path.GetRelativePath(Environment.CurrentDirectory, copy)}");
+    }
+    File.WriteAllText(Path.Combine(dest, "SHA256SUMS.txt"), sums.ToString());
+    Console.WriteLine($"Release folder: {Path.GetFullPath(dest)}");
+    return 0;
+}
+
+// list <dir>...: prints the packages in the given folders.
 if (args is ["list", .. var folders])
 {
     foreach (var f in folders.Where(Directory.Exists).SelectMany(d => Directory.EnumerateFiles(d)).Where(f => f.EndsWith(".msi") || f.EndsWith(".tar.gz")).Order())

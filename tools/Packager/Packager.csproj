@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
     Packages a self-contained Aether publish for Linux and macOS (runs on any OS).
-    Commands: "linux <publishDir> <out.tar.gz> <version>", "mac <publishDir> <out.tar.gz> <version>", "clean <dir>".
+    Commands: "linux|mac <publishDir> <out.tar.gz> <version>", "clean <dir>", "list <dir>...", "collect <dest> <dir>...".
     Used by the "Package ..." run configurations in .aether/runConfigurations (see docs/BUILDING.md).
   -->
   <PropertyGroup>
