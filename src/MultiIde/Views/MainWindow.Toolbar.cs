@@ -301,6 +301,8 @@ public partial class MainWindow
         flyout.Items.Add(new Separator());
         Add("Share Project on GitHub…", () => _ = ShareProjectAsync("github"));
         Add("Share Project on GitLab…", () => _ = ShareProjectAsync("gitlab"));
+        Add("Open on GitHub / GitLab", () => _ = OpenOnHostAsync());
+        Add("Create Pull / Merge Request…", () => _ = CreatePullRequestAsync());
         var branches = (await GitAsync("branch --format=%(refname:short)"))?.Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? [];
         if (branches.Length > 0)
         {

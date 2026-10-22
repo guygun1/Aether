@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using MultiIde.Core;
+using MultiIde.Protocol;
 
 namespace MultiIde.Views;
 
@@ -161,33 +162,119 @@ public partial class MainWindow
 
     // ---- Share on GitHub / GitLab -------------------------------------------------
 
+    private sealed record HostInfo(string Cli, string Display, string Install, string Url, string Login);
+
+    private static HostInfo Host(string host) => host == "github"
+        ? new("gh", "GitHub", "winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements", "https://cli.github.com", "gh auth login")
+        : new("glab", "GitLab", "winget install --id GLab.GLab -e --accept-source-agreements --accept-package-agreements", "https://gitlab.com/gitlab-org/cli", "glab auth login");
+
+    /// <summary>Checks that the hosting CLI is installed and signed in; offers install / sign-in otherwise.</summary>
+    private async Task<bool> RequireHostCliAsync(HostInfo h)
+    {
+        if (ProcessUtil.Resolve(h.Cli) is null)
+        {
+            ShowBalloon($"{h.Display} CLI ({h.Cli}) is not installed", $"{h.Display} integration uses the official {h.Cli} tool, which also handles sign-in securely.", false,
+                ("Install with winget", () => { ShowBottom("run"); RunTab($"Install {h.Cli}", false).Run(h.Install, _root); }),
+                ("Download", () => OpenUrl(h.Url)));
+            return false;
+        }
+        var auth = await ProcessUtil.RunCaptureAsync($"{h.Cli} auth status", _root);
+        if (auth.Code != 0)
+        {
+            ShowBalloon($"Sign in to {h.Display}", $"Run '{h.Login}' once; it opens a browser to authorize. Then try again.", false,
+                ("Open sign-in console", () => OpenConsole(h.Login)));
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>The signed-in account and the organizations / groups it can create repositories in.</summary>
+    private async Task<(string? Account, List<string> Owners)> HostOwnersAsync(string host)
+    {
+        var owners = new List<string>();
+        string? account;
+        if (host == "github")
+        {
+            account = (await ProcessUtil.RunCaptureAsync("gh api user --jq .login", _root)).Stdout.Trim();
+            var orgs = await ProcessUtil.RunCaptureAsync("gh api user/orgs --paginate --jq \".[].login\"", _root);
+            if (orgs.Code == 0) owners.AddRange(orgs.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+        else
+        {
+            account = (await ProcessUtil.RunCaptureAsync("glab api user", _root)) is { Code: 0 } u
+                ? LspUtil.Str(System.Text.Json.Nodes.JsonNode.Parse(u.Stdout)?["username"]) : null;
+            var groups = await ProcessUtil.RunCaptureAsync("glab api \"groups?min_access_level=30&per_page=100\"", _root);
+            if (groups.Code == 0 && System.Text.Json.Nodes.JsonNode.Parse(groups.Stdout) is System.Text.Json.Nodes.JsonArray arr)
+                owners.AddRange(arr.Select(g => LspUtil.Str(g?["full_path"])).Where(p => p.Length > 0));
+        }
+        if (string.IsNullOrWhiteSpace(account)) account = null;
+        if (account is not null) owners.Insert(0, account);
+        return (account, owners.Distinct().ToList());
+    }
+
+    /// <summary>
+    /// Share Project on GitHub / GitLab, like IntelliJ: account and organizations are filled in,
+    /// the name is checked for availability, and the first commit and push happen automatically.
+    /// </summary>
     private async Task ShareProjectAsync(string host)
     {
         if (_root is null) { Notify("Open a project first"); return; }
-        var (cli, display, install, url, login) = host == "github"
-            ? ("gh", "GitHub", "winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements", "https://cli.github.com", "gh auth login")
-            : ("glab", "GitLab", "winget install --id GLab.GLab -e --accept-source-agreements --accept-package-agreements", "https://gitlab.com/gitlab-org/cli", "glab auth login");
-
         if (ProcessUtil.Resolve("git") is null) { RequireGit(); return; }
-        if (ProcessUtil.Resolve(cli) is null)
-        {
-            ShowBalloon($"{display} CLI ({cli}) is not installed", $"Sharing on {display} uses the official {cli} tool, which also handles sign-in securely.", false,
-                ("Install with winget", () => { ShowBottom("run"); RunTab($"Install {cli}", false).Run(install, _root); }),
-                ("Download", () => OpenUrl(url)));
-            return;
-        }
-        var auth = await ProcessUtil.RunCaptureAsync($"{cli} auth status", _root);
-        if (auth.Code != 0)
-        {
-            ShowBalloon($"Sign in to {display}", $"Run '{login}' once; it opens a browser to authorize the CLI. Then share again.", false,
-                ("Open sign-in console", () => OpenConsole(login)));
-            return;
-        }
+        var h = Host(host);
+        if (!await RequireHostCliAsync(h)) return;
 
-        var name = new TextBox { Text = Path.GetFileName(_root) };
+        Status($"Loading your {h.Display} account…");
+        var (account, owners) = await HostOwnersAsync(host);
+        await RefreshGitAsync();
+        var remotes = IsGitRepo ? (await GitExecAsync("remote")).Output.Split('\n', StringSplitOptions.RemoveEmptyEntries) : [];
+
+        var name = new TextBox { Text = Path.GetFileName(_root).Replace(' ', '-') };
+        var owner = new ComboBox { ItemsSource = owners, SelectedIndex = owners.Count > 0 ? 0 : -1, MinWidth = 260 };
+        var isPrivate = new CheckBox { Content = "Private", IsChecked = true };
+        var internalVis = new CheckBox { Content = "Internal (visible to your organization)", IsVisible = host == "gitlab" };
+        var remote = new TextBox { Text = remotes.Contains("origin") ? host : "origin" };
         var description = new TextBox { Watermark = "Optional" };
-        var visibility = new ComboBox { ItemsSource = new[] { "Private", "Public", host == "gitlab" ? "Internal" : null }.Where(x => x is not null).ToList(), SelectedIndex = 0, MinWidth = 160 };
-        var ns = new TextBox { Watermark = host == "github" ? "Your account (or an organization name)" : "Your namespace (or a group path)" };
+        var availability = new TextBlock { FontSize = 12 };
+        var accountLine = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children =
+            {
+                new TextBlock { Text = account is null ? "Account unknown" : $"Signed in as {account}", Classes = { "muted" }, FontSize = 12, VerticalAlignment = VerticalAlignment.Center },
+            },
+        };
+        var switchAccount = new Button { Classes = { "flat" }, Padding = new Thickness(0), Content = new TextBlock { Text = "Switch account…", Foreground = Res("Link"), FontSize = 12 } };
+        switchAccount.Click += (_, _) => OpenConsole(h.Login);
+        accountLine.Children.Add(switchAccount);
+
+        // Live availability check (debounced) for owner/name.
+        CancellationTokenSource? checkCts = null;
+        async void CheckAvailability()
+        {
+            checkCts?.Cancel();
+            var cts = checkCts = new CancellationTokenSource();
+            var full = $"{owner.SelectedItem}/{(name.Text ?? "").Trim()}";
+            if (owner.SelectedItem is null || (name.Text ?? "").Trim().Length == 0) { availability.Text = ""; return; }
+            try
+            {
+                await Task.Delay(350, cts.Token);
+                var probe = host == "github"
+                    ? await ProcessUtil.RunCaptureAsync($"gh repo view \"{full}\" --json name", _root, ct: cts.Token)
+                    : await ProcessUtil.RunCaptureAsync($"glab repo view \"{full}\" -F json", _root, ct: cts.Token);
+                if (cts.IsCancellationRequested) return;
+                var taken = probe.Code == 0;
+                availability.Text = taken ? $"✖ {full} already exists" : $"✓ {full} is available";
+                availability.Foreground = Res(taken ? "Error" : "Success");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+        name.TextChanged += (_, _) => CheckAvailability();
+        owner.SelectionChanged += (_, _) => CheckAvailability();
+        CheckAvailability();
+
         Control Row(string label, Control input) => new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("130,*"),
@@ -198,43 +285,95 @@ public partial class MainWindow
             Spacing = 10,
             Children =
             {
+                accountLine,
                 Row("Repository name:", name),
-                Row(host == "github" ? "Owner:" : "Group:", ns),
-                Row("Visibility:", visibility),
+                Row(host == "github" ? "Owner:" : "Namespace:", owner),
+                new ContentControl { Content = availability, Margin = new Thickness(130, -4, 0, 0) },
+                Row("", new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16, Children = { isPrivate, internalVis } }),
+                Row("Remote:", remote),
                 Row("Description:", description),
-                new TextBlock { Text = IsGitRepo ? "Your commits will be pushed to the new repository." : "A Git repository will be created and all files committed first (respecting .gitignore).", Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 12 },
+                new TextBlock
+                {
+                    Text = IsGitRepo
+                        ? "Your commits will be pushed to the new repository."
+                        : "A Git repository will be created and all files committed first (respecting .gitignore).",
+                    Classes = { "muted" }, TextWrapping = TextWrapping.Wrap, FontSize = 12,
+                },
             },
         };
 
         async Task Share()
         {
             var repo = (name.Text ?? "").Trim();
-            if (repo.Length == 0) { Notify("Enter a repository name.", true); return; }
+            var remoteName = (remote.Text ?? "origin").Trim();
+            if (repo.Length == 0 || owner.SelectedItem is not string ownerName) { Notify("Choose an owner and a repository name.", true); return; }
+            if (remotes.Contains(remoteName)) { Notify($"A remote named '{remoteName}' already exists. Pick another remote name.", true); return; }
             _overlayCancel = null;
             CloseOverlay();
+
             if (!IsGitRepo) await GitInitAsync();
-            var head = await GitExecAsync("rev-parse", "HEAD");
-            if (head.Code != 0)
+            if ((await GitExecAsync("rev-parse", "HEAD")).Code != 0)
             {
                 await GitExecAsync("add", "-A");
                 var first = await GitExecAsync("commit", "-m", "Initial commit");
                 if (first.Code != 0) { Notify(first.Output, true); return; }
             }
-            var full = string.IsNullOrWhiteSpace(ns.Text) ? repo : $"{ns.Text.Trim()}/{repo}";
-            var vis = ((string)visibility.SelectedItem!).ToLowerInvariant();
+            var full = $"{ownerName}/{repo}";
+            var vis = internalVis.IsChecked == true ? "internal" : isPrivate.IsChecked == true ? "private" : "public";
             var desc = (description.Text ?? "").Replace("\"", "'");
             var command = host == "github"
-                ? $"gh repo create \"{full}\" --{vis} --source=. --remote=origin --push" + (desc.Length > 0 ? $" --description \"{desc}\"" : "")
-                : $"glab repo create \"{full}\" --{vis} --remoteName origin" + (desc.Length > 0 ? $" --description \"{desc}\"" : "") + " && git push -u origin HEAD";
+                ? $"gh repo create \"{full}\" --{vis} --source=. --remote={remoteName} --push" + (desc.Length > 0 ? $" --description \"{desc}\"" : "")
+                : $"glab repo create \"{full}\" --{vis} --remoteName {remoteName}" + (desc.Length > 0 ? $" --description \"{desc}\"" : "") + $" && git push -u {remoteName} HEAD";
             ShowBottom("run");
-            RunTab($"Share on {display}", false).Run(command, _root, exited: code =>
+            RunTab($"Share on {h.Display}", false).Run(command, _gitTopLevel ?? _root, exited: code =>
             {
-                if (code == 0) Notify($"Project shared on {display} as {full}.");
+                if (code == 0)
+                    ShowBalloon($"Shared on {h.Display}", $"{full} was created and your commits were pushed.", false,
+                        ($"Open on {h.Display}", () => OpenUrl(host == "github" ? $"https://github.com/{full}" : $"https://gitlab.com/{full}")));
                 _ = RefreshGitAsync();
             });
         }
 
-        ShowOverlay(Dialog($"Share Project on {display}", body, 560, ("Share", () => _ = Share()), ("Cancel", CloseOverlay)));
+        ShowOverlay(Dialog($"Share Project on {h.Display}", body, 580, ("Share", () => _ = Share()), ("Cancel", CloseOverlay)));
+    }
+
+    /// <summary>Which hosting service the "origin" (or first) remote points to: github, gitlab or null.</summary>
+    private async Task<(string? Host, string Remote)> RemoteHostAsync()
+    {
+        var remotes = (await GitExecAsync("remote", "-v")).Output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var line = remotes.FirstOrDefault(l => l.StartsWith("origin")) ?? remotes.FirstOrDefault() ?? "";
+        var name = line.Split('\t', ' ').FirstOrDefault() ?? "origin";
+        return (line.Contains("github.com") ? "github" : line.Contains("gitlab") ? "gitlab" : null, name);
+    }
+
+    /// <summary>Opens the current file (at the caret line) on GitHub / GitLab, like IntelliJ's "Open on GitHub".</summary>
+    private async Task OpenOnHostAsync()
+    {
+        if (!RequireGit()) return;
+        var (host, _) = await RemoteHostAsync();
+        if (host is null) { Notify("This repository has no GitHub or GitLab remote. Use Share Project to create one."); return; }
+        var h = Host(host);
+        if (ProcessUtil.Resolve(h.Cli) is null) { await RequireHostCliAsync(h); return; }
+        var target = _active is { } v && _gitTopLevel is not null
+            ? $"\"{Path.GetRelativePath(_gitTopLevel, v.Doc.FilePath).Replace('\\', '/')}:{v.Editor.TextArea.Caret.Line}\""
+            : "";
+        var command = host == "github" ? $"gh browse {target}" : "glab repo view --web";
+        var result = await ProcessUtil.RunCaptureAsync(command, _gitTopLevel ?? _root);
+        if (result.Code != 0) Notify(Tail(result.Stderr.Length > 0 ? result.Stderr : result.Stdout), true);
+    }
+
+    /// <summary>Opens the host's page to create a pull / merge request for the current branch.</summary>
+    private async Task CreatePullRequestAsync()
+    {
+        if (!RequireGit()) return;
+        var (host, remoteName) = await RemoteHostAsync();
+        if (host is null) { Notify("This repository has no GitHub or GitLab remote. Use Share Project to create one."); return; }
+        var h = Host(host);
+        if (!await RequireHostCliAsync(h)) return;
+        ShowBottom("run");
+        var push = $"git push -u {remoteName} HEAD";
+        RunTab(host == "github" ? "Pull Request" : "Merge Request", false).Run(
+            host == "github" ? $"{push} && gh pr create --web" : $"{push} && glab mr create --web", _gitTopLevel ?? _root);
     }
 
     /// <summary>Opens a real console window (for interactive CLIs such as "gh auth login").</summary>

@@ -333,6 +333,8 @@ public partial class MainWindow : IdeWindow
         Act("shareGithub", "Share Project on GitHub…", "Git", null, () => _ = ShareProjectAsync("github"));
         Act("shareGitlab", "Share Project on GitLab…", "Git", null, () => _ = ShareProjectAsync("gitlab"));
         Act("dependencies", "Dependencies", "View", null, () => { ToggleRight("deps"); _ = RefreshDependenciesAsync(); });
+        Act("openOnHost", "Open on GitHub / GitLab", "Git", null, () => _ = OpenOnHostAsync());
+        Act("createPr", "Create Pull / Merge Request…", "Git", null, () => _ = CreatePullRequestAsync());
         Act("gitInit", "Create Git Repository", "Git", null, () => _ = GitInitAsync());
 
         Act("toggleTheme", "Toggle Light/Dark Theme", "View", null, ToggleTheme);
