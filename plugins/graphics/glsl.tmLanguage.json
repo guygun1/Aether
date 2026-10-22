@@ -1,0 +1,43 @@
+{
+  "name": "GLSL",
+  "scopeName": "source.glsl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#preprocessor" },
+    { "include": "#numbers" },
+    {
+      "match": "\\b(attribute|const|uniform|varying|buffer|shared|coherent|volatile|restrict|readonly|writeonly|layout|centroid|flat|smooth|noperspective|patch|sample|break|continue|do|for|while|switch|case|default|if|else|subroutine|in|out|inout|invariant|precise|discard|return|lowp|mediump|highp|precision|struct)\\b",
+      "name": "keyword.control.glsl"
+    },
+    {
+      "match": "\\b(void|bool|int|uint|float|double|[biud]?vec[234]|d?mat[234](x[234])?|[iu]?sampler(1D|2D|3D|Cube|2DRect|1DArray|2DArray|CubeArray|Buffer|2DMS|2DMSArray)(Shadow)?|[iu]?image(1D|2D|3D|Cube|2DRect|1DArray|2DArray|CubeArray|Buffer|2DMS|2DMSArray)|atomic_uint|sampler|texture2D)\\b",
+      "name": "storage.type.glsl"
+    },
+    { "match": "\\b(true|false)\\b", "name": "constant.language.glsl" },
+    { "match": "\\bgl_[A-Za-z]+\\b", "name": "variable.language.glsl" },
+    {
+      "match": "\\b(radians|degrees|sin|cos|tan|asin|acos|atan|pow|exp|log|exp2|log2|sqrt|inversesqrt|abs|sign|floor|ceil|fract|mod|min|max|clamp|mix|step|smoothstep|length|distance|dot|cross|normalize|reflect|refract|faceforward|matrixCompMult|transpose|inverse|determinant|texture|textureLod|textureSize|texelFetch|dFdx|dFdy|fwidth|emitVertex|endPrimitive|barrier|memoryBarrier|imageLoad|imageStore)\\b(?=\\s*\\()",
+      "name": "support.function.glsl"
+    },
+    {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": { "1": { "name": "entity.name.function.glsl" } }
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "begin": "/\\*", "end": "\\*/", "name": "comment.block.glsl" },
+        { "match": "//.*$", "name": "comment.line.double-slash.glsl" }
+      ]
+    },
+    "preprocessor": {
+      "match": "^\\s*#\\s*(version|extension|define|undef|if|ifdef|ifndef|else|elif|endif|include|pragma|line|error)\\b.*$",
+      "name": "meta.preprocessor.glsl"
+    },
+    "numbers": {
+      "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)[uUfFlL]?\\b",
+      "name": "constant.numeric.glsl"
+    }
+  }
+}

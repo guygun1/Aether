@@ -1,0 +1,469 @@
+{
+  "id": "aether.java",
+  "name": "Java",
+  "version": "0.1.0",
+  "description": "Java language support: Eclipse JDT language server, Gradle and Maven, IntelliJ-style live templates.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "java",
+        "name": "Java",
+        "extensions": [
+          ".java"
+        ],
+        "scopeName": "source.java",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "J",
+        "iconColor": "#E76F00"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "jdtls",
+        "name": "Eclipse JDT Language Server",
+        "command": "java",
+        "languages": [
+          "java"
+        ],
+        "args": [
+          "-Declipse.application=org.eclipse.jdt.ls.core.id1",
+          "-Dosgi.bundles.defaultStartLevel=4",
+          "-Declipse.product=org.eclipse.jdt.ls.core.product",
+          "-Xmx1G",
+          "--add-modules=ALL-SYSTEM",
+          "--add-opens",
+          "java.base/java.util=ALL-UNNAMED",
+          "--add-opens",
+          "java.base/java.lang=ALL-UNNAMED",
+          "-jar",
+          "${home}/.aether/tools/jdtls/plugins/org.eclipse.equinox.launcher_*.jar",
+          "-configuration",
+          "${home}/.aether/tools/jdtls/config_${os}",
+          "-data",
+          "${home}/.aether/jdtls-workspaces/${workspaceFolderName}"
+        ],
+        "requires": "${home}/.aether/tools/jdtls/bin/jdtls",
+        "download": {
+          "url": {
+            "windows": "https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz",
+            "linux": "https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz",
+            "macos": "https://download.eclipse.org/jdtls/snapshots/jdt-language-server-latest.tar.gz"
+          },
+          "executable": "jdtls"
+        },
+        "prerequisite": {
+          "command": "java",
+          "name": "Java 21 JDK",
+          "install": "winget install --id EclipseAdoptium.Temurin.21.JDK -e --accept-source-agreements --accept-package-agreements",
+          "url": "https://adoptium.net"
+        },
+        "installUrl": "https://github.com/eclipse-jdtls/eclipse.jdt.ls"
+      }
+    ],
+    "runConfigurations": [
+      {
+        "name": "gradlew run",
+        "command": "gradlew run",
+        "when": "gradlew"
+      },
+      {
+        "name": "gradlew build",
+        "command": "gradlew build",
+        "when": "gradlew",
+        "kind": "build"
+      },
+      {
+        "name": "gradlew test",
+        "command": "gradlew test",
+        "when": "gradlew",
+        "kind": "test"
+      },
+      {
+        "name": "gradle build",
+        "command": "gradle build",
+        "when": "build.gradle.kts",
+        "kind": "build"
+      },
+      {
+        "name": "mvn package",
+        "command": "mvn -q package",
+        "when": "pom.xml",
+        "kind": "build"
+      },
+      {
+        "name": "mvn test",
+        "command": "mvn test",
+        "when": "pom.xml",
+        "kind": "test"
+      },
+      {
+        "name": "mvn exec:java",
+        "command": "mvn -q compile exec:java",
+        "when": "pom.xml"
+      },
+      {
+        "name": "Run Main.java",
+        "command": "java src/Main.java",
+        "when": "src/Main.java"
+      }
+    ],
+    "dependencyManagers": [
+      {
+        "id": "maven",
+        "name": "Maven",
+        "manifest": "pom.xml",
+        "format": "maven",
+        "restore": "mvn -q dependency:resolve",
+        "docs": "https://central.sonatype.com/artifact/${name}",
+        "search": "https://central.sonatype.com/search?q=${query}"
+      },
+      {
+        "id": "gradle",
+        "name": "Gradle",
+        "manifest": "build.gradle*",
+        "format": "gradle",
+        "restore": "gradlew --refresh-dependencies dependencies",
+        "docs": "https://central.sonatype.com/artifact/${name}",
+        "search": "https://central.sonatype.com/search?q=${query}"
+      }
+    ],
+    "projectTemplates": [
+      {
+        "id": "java-plain",
+        "name": "Java: Application",
+        "description": "A single Main.java run with the JDK; no build tool.",
+        "icon": "J",
+        "iconColor": "#E76F00",
+        "category": "Java",
+        "files": {
+          "src/Main.java": [
+            "public class Main {",
+            "\tpublic static void main(String[] args) {",
+            "\t\tSystem.out.println(\"Hello from ${name}!\");",
+            "\t}",
+            "}"
+          ],
+          ".gitignore": [
+            "out/",
+            "*.class"
+          ]
+        }
+      },
+      {
+        "id": "java-gradle",
+        "name": "Java: Gradle Application",
+        "description": "Gradle (Kotlin DSL) application with JUnit 5. Run \"gradle wrapper\" once to add gradlew.",
+        "icon": "J",
+        "iconColor": "#02303A",
+        "category": "Java",
+        "files": {
+          "settings.gradle.kts": [
+            "rootProject.name = \"${name}\""
+          ],
+          "build.gradle.kts": [
+            "plugins {",
+            "\tapplication",
+            "}",
+            "",
+            "repositories {",
+            "\tmavenCentral()",
+            "}",
+            "",
+            "dependencies {",
+            "\ttestImplementation(platform(\"org.junit:junit-bom:5.11.4\"))",
+            "\ttestImplementation(\"org.junit.jupiter:junit-jupiter\")",
+            "\ttestRuntimeOnly(\"org.junit.platform:junit-platform-launcher\")",
+            "}",
+            "",
+            "java {",
+            "\ttoolchain.languageVersion = JavaLanguageVersion.of(21)",
+            "}",
+            "",
+            "application {",
+            "\tmainClass = \"app.Main\"",
+            "}",
+            "",
+            "tasks.test {",
+            "\tuseJUnitPlatform()",
+            "}"
+          ],
+          "src/main/java/app/Main.java": [
+            "package app;",
+            "",
+            "public class Main {",
+            "\tpublic static void main(String[] args) {",
+            "\t\tSystem.out.println(\"Hello from ${name}!\");",
+            "\t}",
+            "}"
+          ],
+          "src/test/java/app/MainTest.java": [
+            "package app;",
+            "",
+            "import org.junit.jupiter.api.Test;",
+            "",
+            "import static org.junit.jupiter.api.Assertions.*;",
+            "",
+            "class MainTest {",
+            "\t@Test",
+            "\tvoid works() {",
+            "\t\tassertEquals(2, 1 + 1);",
+            "\t}",
+            "}"
+          ],
+          ".gitignore": [
+            ".gradle/",
+            "build/"
+          ]
+        }
+      },
+      {
+        "id": "java-maven",
+        "name": "Java: Maven Application",
+        "description": "Maven project with JUnit 5; \"mvn exec:java\" runs it.",
+        "icon": "M",
+        "iconColor": "#C71A36",
+        "category": "Java",
+        "files": {
+          "pom.xml": [
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+            "<project xmlns=\"http://maven.apache.org/POM/4.0.0\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"",
+            "         xsi:schemaLocation=\"http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd\">",
+            "  <modelVersion>4.0.0</modelVersion>",
+            "  <groupId>app</groupId>",
+            "  <artifactId>${name}</artifactId>",
+            "  <version>1.0-SNAPSHOT</version>",
+            "",
+            "  <properties>",
+            "    <maven.compiler.release>21</maven.compiler.release>",
+            "    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>",
+            "    <exec.mainClass>app.Main</exec.mainClass>",
+            "  </properties>",
+            "",
+            "  <dependencies>",
+            "    <dependency>",
+            "      <groupId>org.junit.jupiter</groupId>",
+            "      <artifactId>junit-jupiter</artifactId>",
+            "      <version>5.11.4</version>",
+            "      <scope>test</scope>",
+            "    </dependency>",
+            "  </dependencies>",
+            "</project>"
+          ],
+          "src/main/java/app/Main.java": [
+            "package app;",
+            "",
+            "public class Main {",
+            "\tpublic static void main(String[] args) {",
+            "\t\tSystem.out.println(\"Hello from ${name}!\");",
+            "\t}",
+            "}"
+          ],
+          ".gitignore": [
+            "target/"
+          ]
+        }
+      }
+    ],
+    "fileTemplates": [
+      {
+        "name": "Java Class",
+        "extension": ".java",
+        "body": [
+          "public class ${name} {",
+          "\t",
+          "}"
+        ]
+      },
+      {
+        "name": "Java Interface",
+        "extension": ".java",
+        "body": [
+          "public interface ${name} {",
+          "\t",
+          "}"
+        ]
+      },
+      {
+        "name": "Java Record",
+        "extension": ".java",
+        "body": [
+          "public record ${name}() {",
+          "}"
+        ]
+      },
+      {
+        "name": "Java Enum",
+        "extension": ".java",
+        "body": [
+          "public enum ${name} {",
+          "\t",
+          "}"
+        ]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "java",
+        "prefix": "psvm",
+        "body": [
+          "public static void main(String[] args) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "main() method"
+      },
+      {
+        "language": "java",
+        "prefix": "main",
+        "body": [
+          "public static void main(String[] args) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "main() method"
+      },
+      {
+        "language": "java",
+        "prefix": "sout",
+        "body": [
+          "System.out.println($0);"
+        ],
+        "description": "Print to System.out"
+      },
+      {
+        "language": "java",
+        "prefix": "serr",
+        "body": [
+          "System.err.println($0);"
+        ],
+        "description": "Print to System.err"
+      },
+      {
+        "language": "java",
+        "prefix": "souf",
+        "body": [
+          "System.out.printf(\"${1}%n\"$0);"
+        ],
+        "description": "printf"
+      },
+      {
+        "language": "java",
+        "prefix": "soutv",
+        "body": [
+          "System.out.println(\"${1:value} = \" + ${1:value});"
+        ],
+        "description": "Print a value"
+      },
+      {
+        "language": "java",
+        "prefix": "fori",
+        "body": [
+          "for (int ${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Indexed for loop"
+      },
+      {
+        "language": "java",
+        "prefix": "iter",
+        "body": [
+          "for (${1:var} ${2:item} : ${3:items}) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "For-each loop"
+      },
+      {
+        "language": "java",
+        "prefix": "ifn",
+        "body": [
+          "if (${1:value} == null) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "If null"
+      },
+      {
+        "language": "java",
+        "prefix": "inn",
+        "body": [
+          "if (${1:value} != null) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "If not null"
+      },
+      {
+        "language": "java",
+        "prefix": "psf",
+        "body": [
+          "public static final ${1:String} ${2:NAME} = ${0};"
+        ],
+        "description": "public static final"
+      },
+      {
+        "language": "java",
+        "prefix": "psfs",
+        "body": [
+          "public static final String ${1:NAME} = \"${0}\";"
+        ],
+        "description": "public static final String"
+      },
+      {
+        "language": "java",
+        "prefix": "prsf",
+        "body": [
+          "private static final ${1:String} ${2:NAME} = ${0};"
+        ],
+        "description": "private static final"
+      },
+      {
+        "language": "java",
+        "prefix": "thr",
+        "body": [
+          "throw new ${1:IllegalStateException}(${0});"
+        ],
+        "description": "throw new"
+      },
+      {
+        "language": "java",
+        "prefix": "try",
+        "body": [
+          "try {",
+          "\t${TM_SELECTED_TEXT}$0",
+          "} catch (${1:Exception} e) {",
+          "\tthrow new RuntimeException(e);",
+          "}"
+        ],
+        "description": "try / catch"
+      },
+      {
+        "language": "java",
+        "prefix": "lazy",
+        "body": [
+          "if (${1:field} == null) {",
+          "\t${1:field} = new ${2:Type}();",
+          "}"
+        ],
+        "description": "Lazy init"
+      },
+      {
+        "language": "java",
+        "prefix": "test",
+        "body": [
+          "@Test",
+          "void ${1:name}() {",
+          "\t$0",
+          "}"
+        ],
+        "description": "JUnit test"
+      }
+    ]
+  }
+}

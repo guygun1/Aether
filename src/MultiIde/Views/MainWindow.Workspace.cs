@@ -69,6 +69,7 @@ public partial class MainWindow : IEditorHost
         if (Settings.RestoreSession) _ = RestoreSessionAsync();
         ProjectOptionsButton();
         _ = RefreshExternalLibrariesAsync();
+        _ = TokenPredictor.IndexProjectAsync(_root, Plugins);
         _ = RefreshGitAsync();
         UpdateStatusBar();
     }
@@ -356,8 +357,52 @@ public partial class MainWindow : IEditorHost
         return _views.FirstOrDefault(v => IdePaths.Key(v.Doc.FilePath) == key);
     }
 
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".ico", ".webp" };
+
+    /// <summary>Image viewer for textures, sprites and icons: checkerboard, zoom, size info.</summary>
+    private void ShowImageViewer(string path)
+    {
+        Avalonia.Media.Imaging.Bitmap bitmap;
+        try { bitmap = new Avalonia.Media.Imaging.Bitmap(path); }
+        catch (Exception e) { Notify($"Cannot show {Path.GetFileName(path)}: {e.Message}", true); return; }
+        var zoom = 1.0;
+        var image = new Image { Source = bitmap, Stretch = Stretch.Fill };
+        RenderOptions.SetBitmapInterpolationMode(image, Avalonia.Media.Imaging.BitmapInterpolationMode.None); // crisp pixels for pixel art
+        var checker = new Border
+        {
+            Background = new VisualBrush
+            {
+                TileMode = TileMode.Tile, DestinationRect = new RelativeRect(0, 0, 16, 16, RelativeUnit.Absolute),
+                Visual = new Canvas
+                {
+                    Width = 16, Height = 16, Background = new SolidColorBrush(Color.Parse("#CCCCCC")),
+                    Children = { new Border { Width = 8, Height = 8, Background = new SolidColorBrush(Color.Parse("#999999")) }, new Border { Width = 8, Height = 8, Background = new SolidColorBrush(Color.Parse("#999999")), [Canvas.LeftProperty] = 8.0, [Canvas.TopProperty] = 8.0 } },
+                },
+            },
+            Child = image,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var info = new TextBlock { Classes = { "muted" }, VerticalAlignment = VerticalAlignment.Center };
+        void Apply()
+        {
+            image.Width = bitmap.PixelSize.Width * zoom;
+            image.Height = bitmap.PixelSize.Height * zoom;
+            info.Text = $"{bitmap.PixelSize.Width} × {bitmap.PixelSize.Height} px · {new FileInfo(path).Length / 1024.0:0.#} KB · {zoom * 100:0}%";
+        }
+        // Fit large images, magnify tiny sprites.
+        zoom = Math.Clamp(Math.Min(860.0 / bitmap.PixelSize.Width, 520.0 / bitmap.PixelSize.Height), 0.05, 16);
+        if (zoom > 1) zoom = Math.Floor(zoom);
+        Apply();
+        Button Z(string text, Action act) { var b = new Button { Content = text, Classes = { "secondary" }, Padding = new Thickness(10, 3) }; b.Click += (_, _) => { act(); Apply(); }; return b; }
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { Z("−", () => zoom = Math.Max(0.05, zoom / 1.5)), Z("+", () => zoom = Math.Min(32, zoom * 1.5)), Z("1:1", () => zoom = 1), info } };
+        var body = new StackPanel { Spacing = 10, Children = { tools, new ScrollViewer { Content = checker, MaxHeight = 560, MaxWidth = 880, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto } } };
+        ShowOverlay(Dialog(Path.GetFileName(path), body, 920, ("Close", CloseOverlay), ("Open in Explorer", () => ProcessUtil.OpenInFileManager(path))));
+    }
+
     public async Task OpenFileAsync(string path, int? line = null, int? column = null)
     {
+        if (ImageExtensions.Contains(Path.GetExtension(path))) { ShowImageViewer(path); return; }
         var view = await EnsureViewAsync(path);
         if (view is null) return;
         if (!_suppressHistory && (view != _active || line is not null)) RecordLocation();
@@ -373,6 +418,7 @@ public partial class MainWindow : IEditorHost
     /// </summary>
     public async Task OpenPreviewAsync(string path)
     {
+        if (ImageExtensions.Contains(Path.GetExtension(path))) { ShowImageViewer(path); return; }
         if (FindView(path) is { } existing)
         {
             Activate(existing);
@@ -447,7 +493,7 @@ public partial class MainWindow : IEditorHost
     {
         if (!_reportedServers.Add(config.Id)) return;
         var actions = new List<(string, Action)>();
-        if (!string.IsNullOrEmpty(config.Install))
+        if (!string.IsNullOrEmpty(config.Install) || config.Download?.UrlForThisOs() is not null)
             actions.Add(("Install", () => InstallServer(config)));
         if (!string.IsNullOrEmpty(config.InstallUrl))
             actions.Add(("Instructions", () => OpenUrl(config.InstallUrl)));
@@ -458,18 +504,12 @@ public partial class MainWindow : IEditorHost
             false, actions.ToArray());
     }
 
-    public void InstallServer(LspServerConfig config)
+    public async void InstallServer(LspServerConfig config)
     {
-        if (string.IsNullOrEmpty(config.Install)) return;
-        ShowBottom("run");
-        RunTab($"Install {config.Name}", false).Run(config.Install, _root ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), exited: async code =>
-        {
-            if (code != 0) { Notify($"Installing {config.Name} failed (exit code {code}). See the Run tool window.", true); return; }
-            Notify($"{config.Name} installed. Starting it…");
-            _reportedServers.Remove(config.Id);
-            await Lsp.RestartAsync(config.Id);
-            foreach (var v in _views.Where(v => config.Languages.Contains(v.Doc.LanguageId))) _ = AttachLspAsync(v.Doc);
-        });
+        if (!await InstallServerAsync(config)) return;
+        _reportedServers.Remove(config.Id);
+        await Lsp.RestartAsync(config.Id);
+        foreach (var v in _views.Where(v => config.Languages.Contains(v.Doc.LanguageId))) _ = AttachLspAsync(v.Doc);
     }
 
     private void WireLspClient(LspClient client)
@@ -606,6 +646,7 @@ public partial class MainWindow : IEditorHost
             {
                 if (Settings.FormatOnSave && v.Doc.Lsp?.Has("documentFormattingProvider") == true) await v.FormatAsync();
                 await v.Doc.SaveAsync(Settings.TrimTrailingWhitespace, Settings.EnsureFinalNewline);
+                TokenPredictor.Learn(v.Doc.LanguageId, v.Doc.Text.Text);
             }
             catch (Exception e)
             {

@@ -95,19 +95,28 @@
         "id": "cs-console",
         "name": "C#: Console App",
         "description": "A .NET console application (dotnet new console).",
-        "command": "dotnet new console -n \"${name}\" -o \"${name}\""
+        "command": "dotnet new console -n \"${name}\" -o \"${name}\"",
+        "icon": "C#",
+        "iconColor": "#9B4F96",
+        "category": ".NET"
       },
       {
         "id": "cs-classlib",
         "name": "C#: Class Library",
         "description": "A .NET class library (dotnet new classlib).",
-        "command": "dotnet new classlib -n \"${name}\" -o \"${name}\""
+        "command": "dotnet new classlib -n \"${name}\" -o \"${name}\"",
+        "icon": "LIB",
+        "iconColor": "#7A3D78",
+        "category": ".NET"
       },
       {
         "id": "cs-xunit",
         "name": "C#: xUnit Test Project",
         "description": "A .NET test project using xUnit.",
-        "command": "dotnet new xunit -n \"${name}\" -o \"${name}\""
+        "command": "dotnet new xunit -n \"${name}\" -o \"${name}\"",
+        "icon": "TST",
+        "iconColor": "#5FB865",
+        "category": ".NET"
       }
     ],
     "snippets": [

@@ -38,6 +38,8 @@ public static class DependencyParsers
                 "msbuild" => MsBuild(manifest),
                 "vcpkg" => Vcpkg(manifest),
                 "cmake" => CMake(manifest),
+                "maven" => Maven(manifest),
+                "gradle" => Gradle(manifest),
                 _ => new(),
             };
         }
@@ -130,6 +132,29 @@ public static class DependencyParsers
             JsonObject o => new Dependency(o["name"]?.GetValue<string>() ?? "?", o["version>="]?.GetValue<string>() ?? "", "vcpkg", path, 0),
             _ => null,
         }).OfType<Dependency>().ToList();
+    }
+
+    private static List<Dependency> Maven(string path)
+    {
+        var doc = XDocument.Load(path, LoadOptions.SetLineInfo);
+        return doc.Descendants().Where(e => e.Name.LocalName == "dependency").Select(d =>
+        {
+            string V(string n) => d.Elements().FirstOrDefault(x => x.Name.LocalName == n)?.Value ?? "";
+            return new Dependency($"{V("groupId")}:{V("artifactId")}", V("version"), V("scope") is { Length: > 0 } s ? s : "compile", path, ((System.Xml.IXmlLineInfo)d).LineNumber);
+        }).ToList();
+    }
+
+    private static readonly Regex GradleDep = new(@"^\s*(?<conf>implementation|api|compileOnly|runtimeOnly|testImplementation|annotationProcessor|modImplementation|include|minecraft|mappings)\s*\(?\s*[""'](?<coords>[^""']+)[""']", RegexOptions.Compiled | RegexOptions.Multiline);
+
+    private static List<Dependency> Gradle(string path)
+    {
+        var text = File.ReadAllText(path);
+        return GradleDep.Matches(text).Select(m =>
+        {
+            var parts = m.Groups["coords"].Value.Split(':');
+            var name = parts.Length >= 2 ? $"{parts[0]}:{parts[1]}" : parts[0];
+            return new Dependency(name, parts.Length >= 3 ? parts[2] : "", m.Groups["conf"].Value, path, text.AsSpan(0, m.Index).Count('\n') + 1);
+        }).ToList();
     }
 
     private static readonly Regex FetchContent = new(@"FetchContent_Declare\s*\(\s*(?<name>\w+)(?<body>[^)]*)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);

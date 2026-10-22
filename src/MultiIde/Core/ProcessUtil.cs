@@ -14,6 +14,7 @@ public static class ProcessUtil
         yield return Path.Combine(home, ".cargo", "bin");
         yield return Path.Combine(home, ".dotnet", "tools");
         yield return Path.Combine(home, ".local", "bin");
+        foreach (var dir in ToolInstaller.SearchDirs()) yield return dir;
         if (IdePaths.IsWindows)
         {
             yield return @"C:\Program Files\LLVM\bin";

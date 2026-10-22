@@ -37,6 +37,20 @@
           "check": {
             "command": "clippy"
           }
+        },
+        "download": {
+          "url": {
+            "windows": "https://github.com/rust-lang/rust-analyzer/releases/latest/download/rust-analyzer-x86_64-pc-windows-msvc.zip",
+            "linux": "https://github.com/rust-lang/rust-analyzer/releases/latest/download/rust-analyzer-x86_64-unknown-linux-gnu.gz",
+            "macos": "https://github.com/rust-lang/rust-analyzer/releases/latest/download/rust-analyzer-aarch64-apple-darwin.gz"
+          },
+          "executable": "rust-analyzer"
+        },
+        "prerequisite": {
+          "command": "cargo",
+          "name": "Rust toolchain",
+          "install": "winget install --id Rustlang.Rustup -e --accept-source-agreements --accept-package-agreements",
+          "url": "https://rustup.rs"
         }
       }
     ],
@@ -75,13 +89,19 @@
         "id": "rust-bin",
         "name": "Rust: Binary (Cargo)",
         "description": "A Cargo application with src/main.rs. Needs the Rust toolchain (rustup).",
-        "command": "cargo new \"${name}\""
+        "command": "cargo new \"${name}\"",
+        "icon": "RS",
+        "iconColor": "#E8743B",
+        "category": "Rust"
       },
       {
         "id": "rust-lib",
         "name": "Rust: Library (Cargo)",
         "description": "A Cargo library with src/lib.rs and a unit test.",
-        "command": "cargo new --lib \"${name}\""
+        "command": "cargo new --lib \"${name}\"",
+        "icon": "RS",
+        "iconColor": "#C55A2A",
+        "category": "Rust"
       }
     ],
     "snippets": [

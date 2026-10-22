@@ -79,6 +79,8 @@ public sealed class CompletionItemData : ICompletionData
     }
 
     public string Label { get; }
+    /// <summary>IntelliCode-style: one of your most-used picks, shown with a star at the top.</summary>
+    public bool Starred { get; set; }
     public string SortText { get; }
     public int Kind { get; }
     public string Text { get; }
@@ -102,7 +104,7 @@ public sealed class CompletionItemData : ICompletionData
 
         var label = new TextBlock
         {
-            Text = Label,
+            Text = Starred ? "★ " + Label : Label,
             FontFamily = (FontFamily)Application.Current!.FindResource("MonoFont")!,
             FontSize = 13,
             VerticalAlignment = VerticalAlignment.Center,
@@ -171,6 +173,7 @@ public sealed class CompletionItemData : ICompletionData
 
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
+        CompletionUsage.Record(_doc.LanguageId, Label);
         var doc = textArea.Document;
         var caret = completionSegment.EndOffset;
         var typedSince = caret - _requestCaret;

@@ -1,0 +1,283 @@
+{
+  "id": "aether.minecraft",
+  "name": "Minecraft Modding",
+  "version": "0.1.0",
+  "description": "Paper/Spigot plugins and Fabric/NeoForge mods: project templates, Gradle run tasks, Mixin and listener templates. Native replacement for the IntelliJ Minecraft Development plugin.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "mcmeta",
+        "name": "Minecraft Metadata",
+        "extensions": [
+          ".mcmeta"
+        ],
+        "scopeName": "source.json",
+        "icon": "MC",
+        "iconColor": "#62B47A"
+      }
+    ],
+    "projectTemplates": [
+      {
+        "id": "mc-paper",
+        "name": "Minecraft: Paper Plugin",
+        "description": "Paper server plugin (Gradle Kotlin DSL, Java 21, paper-api 1.21.4).",
+        "icon": "PA",
+        "iconColor": "#4E9DE3",
+        "category": "Minecraft",
+        "files": {
+          "settings.gradle.kts": [
+            "rootProject.name = \"${name}\""
+          ],
+          "build.gradle.kts": [
+            "plugins {",
+            "\tjava",
+            "}",
+            "",
+            "group = \"com.example\"",
+            "version = \"1.0.0\"",
+            "",
+            "repositories {",
+            "\tmavenCentral()",
+            "\tmaven(\"https://repo.papermc.io/repository/maven-public/\")",
+            "}",
+            "",
+            "dependencies {",
+            "\tcompileOnly(\"io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT\")",
+            "}",
+            "",
+            "java {",
+            "\ttoolchain.languageVersion = JavaLanguageVersion.of(21)",
+            "}"
+          ],
+          "src/main/resources/plugin.yml": [
+            "name: ${name}",
+            "version: 1.0.0",
+            "main: com.example.plugin.MainPlugin",
+            "api-version: '1.21'"
+          ],
+          "src/main/java/com/example/plugin/MainPlugin.java": [
+            "package com.example.plugin;",
+            "",
+            "import org.bukkit.event.EventHandler;",
+            "import org.bukkit.event.Listener;",
+            "import org.bukkit.event.player.PlayerJoinEvent;",
+            "import org.bukkit.plugin.java.JavaPlugin;",
+            "",
+            "public final class MainPlugin extends JavaPlugin implements Listener {",
+            "",
+            "\t@Override",
+            "\tpublic void onEnable() {",
+            "\t\tgetServer().getPluginManager().registerEvents(this, this);",
+            "\t\tgetLogger().info(\"${name} enabled\");",
+            "\t}",
+            "",
+            "\t@EventHandler",
+            "\tpublic void onJoin(PlayerJoinEvent event) {",
+            "\t\tevent.getPlayer().sendMessage(\"Welcome!\");",
+            "\t}",
+            "}"
+          ],
+          ".gitignore": [
+            ".gradle/",
+            "build/",
+            "run/"
+          ]
+        }
+      },
+      {
+        "id": "mc-fabric",
+        "name": "Minecraft: Fabric Mod",
+        "description": "Clones the official Fabric example mod (needs git). Run \"Fabric: genSources\" once for Minecraft sources.",
+        "icon": "FA",
+        "iconColor": "#B8A77A",
+        "category": "Minecraft",
+        "command": "git clone --depth 1 https://github.com/FabricMC/fabric-example-mod \"${name}\" && cd \"${name}\" && git remote remove origin"
+      },
+      {
+        "id": "mc-neoforge",
+        "name": "Minecraft: NeoForge Mod",
+        "description": "Clones the official NeoForge 1.21.1 ModDevGradle MDK (needs git).",
+        "icon": "NF",
+        "iconColor": "#D7742F",
+        "category": "Minecraft",
+        "command": "git clone --depth 1 https://github.com/NeoForgeMDKs/MDK-1.21.1-ModDevGradle \"${name}\" && cd \"${name}\" && git remote remove origin"
+      }
+    ],
+    "runConfigurations": [
+      {
+        "name": "Fabric: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/resources/fabric.mod.json"
+      },
+      {
+        "name": "Fabric: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/resources/fabric.mod.json"
+      },
+      {
+        "name": "Fabric: genSources",
+        "command": "gradlew genSources",
+        "when": "src/main/resources/fabric.mod.json",
+        "kind": "build"
+      },
+      {
+        "name": "NeoForge: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/templates/META-INF/neoforge.mods.toml"
+      },
+      {
+        "name": "NeoForge: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/templates/META-INF/neoforge.mods.toml"
+      },
+      {
+        "name": "NeoForge: runData",
+        "command": "gradlew runData",
+        "when": "src/main/templates/META-INF/neoforge.mods.toml",
+        "kind": "build"
+      },
+      {
+        "name": "Paper: build plugin jar",
+        "command": "gradle build",
+        "when": "src/main/resources/plugin.yml",
+        "kind": "build"
+      }
+    ],
+    "fileTemplates": [
+      {
+        "name": "Mixin Class",
+        "extension": ".java",
+        "body": [
+          "import org.spongepowered.asm.mixin.Mixin;",
+          "import org.spongepowered.asm.mixin.injection.At;",
+          "import org.spongepowered.asm.mixin.injection.Inject;",
+          "import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;",
+          "",
+          "@Mixin(TargetClass.class)",
+          "public abstract class ${name} {",
+          "",
+          "\t@Inject(method = \"tick\", at = @At(\"HEAD\"))",
+          "\tprivate void onTick(CallbackInfo ci) {",
+          "\t}",
+          "}"
+        ]
+      },
+      {
+        "name": "Bukkit Listener",
+        "extension": ".java",
+        "body": [
+          "import org.bukkit.event.EventHandler;",
+          "import org.bukkit.event.Listener;",
+          "import org.bukkit.event.player.PlayerJoinEvent;",
+          "",
+          "public final class ${name} implements Listener {",
+          "",
+          "\t@EventHandler",
+          "\tpublic void onJoin(PlayerJoinEvent event) {",
+          "\t}",
+          "}"
+        ]
+      },
+      {
+        "name": "Bukkit Command",
+        "extension": ".java",
+        "body": [
+          "import org.bukkit.command.Command;",
+          "import org.bukkit.command.CommandExecutor;",
+          "import org.bukkit.command.CommandSender;",
+          "",
+          "public final class ${name} implements CommandExecutor {",
+          "",
+          "\t@Override",
+          "\tpublic boolean onCommand(CommandSender sender, Command command, String label, String[] args) {",
+          "\t\treturn true;",
+          "\t}",
+          "}"
+        ]
+      }
+    ],
+    "snippets": [
+      {
+        "language": "java",
+        "prefix": "mixin",
+        "body": [
+          "@Mixin(${1:Target}.class)",
+          "public abstract class ${2:TargetMixin} {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Mixin class"
+      },
+      {
+        "language": "java",
+        "prefix": "inject",
+        "body": [
+          "@Inject(method = \"${1:method}\", at = @At(\"${2:HEAD}\"))",
+          "private void ${3:onMethod}(CallbackInfo ci) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Mixin @Inject"
+      },
+      {
+        "language": "java",
+        "prefix": "injectr",
+        "body": [
+          "@Inject(method = \"${1:method}\", at = @At(\"${2:RETURN}\"), cancellable = true)",
+          "private void ${3:onMethod}(CallbackInfoReturnable<${4:Boolean}> cir) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Mixin @Inject with return value"
+      },
+      {
+        "language": "java",
+        "prefix": "shadow",
+        "body": [
+          "@Shadow",
+          "${1:private} ${2:int} ${3:field};"
+        ],
+        "description": "Mixin @Shadow field"
+      },
+      {
+        "language": "java",
+        "prefix": "evh",
+        "body": [
+          "@EventHandler",
+          "public void on${1:Join}(${2:PlayerJoinEvent} event) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Bukkit event handler"
+      },
+      {
+        "language": "java",
+        "prefix": "subscribe",
+        "body": [
+          "@SubscribeEvent",
+          "public static void on${1:Event}(${2:ServerStartingEvent} event) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "NeoForge event subscriber"
+      },
+      {
+        "language": "java",
+        "prefix": "regitem",
+        "body": [
+          "public static final DeferredItem<Item> ${1:NAME} = ITEMS.registerSimpleItem(\"${2:name}\");"
+        ],
+        "description": "NeoForge item registration"
+      },
+      {
+        "language": "java",
+        "prefix": "fabregitem",
+        "body": [
+          "public static final Item ${1:NAME} = Registry.register(Registries.ITEM, Identifier.of(MOD_ID, \"${2:name}\"), new Item(new Item.Settings()));"
+        ],
+        "description": "Fabric item registration"
+      }
+    ]
+  }
+}

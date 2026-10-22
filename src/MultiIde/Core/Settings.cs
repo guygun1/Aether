@@ -116,6 +116,8 @@ public sealed class Settings
     public bool ScrollPastEnd { get; set; } = true;
     public bool BracketHighlight { get; set; } = true;
     public bool InlayHints { get; set; } = true;
+    /// <summary>IntelliCode-style next-word suggestions learned from the project (Tab accepts).</summary>
+    public bool SmartSuggestions { get; set; } = true;
     // Code completion & typing
     public bool AutoPopupCompletion { get; set; } = true;
     public int CompletionDelayMs { get; set; }

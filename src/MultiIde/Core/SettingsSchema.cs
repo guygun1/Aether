@@ -67,6 +67,9 @@ public static class SettingsSchema
             "New errors and warnings wait until you stop typing this long. Stale marks on the line you edit are hidden while typing. 0 = immediately."),
         Bool("Code Completion", "Quick documentation on mouse hover", s => s.HoverDocs, (s, v) => s.HoverDocs = v),
 
+        Bool("Code Completion", "Smart next-word suggestions (gray text, Tab to accept)", s => s.SmartSuggestions, (s, v) => s.SmartSuggestions = v,
+            "After e.g. \"private \", suggests the word your code almost always uses next (\"static\", \"readonly\"…). Learned locally from your project."),
+
         // Typing
         Bool("Typing", "Insert pair brackets", s => s.AutoCloseBrackets, (s, v) => s.AutoCloseBrackets = v),
         Bool("Typing", "Insert pair quotes", s => s.AutoCloseQuotes, (s, v) => s.AutoCloseQuotes = v),

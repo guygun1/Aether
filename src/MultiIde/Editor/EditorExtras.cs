@@ -136,9 +136,80 @@ public sealed class ErrorStripe : Control
     }
 }
 
+/// <summary>Draws a predicted next word as gray text right after the caret.</summary>
+public sealed class GhostTextRenderer : IBackgroundRenderer
+{
+    public string? Text { get; set; }
+    public int Offset { get; set; } = -1;
+    public KnownLayer Layer => KnownLayer.Caret;
+
+    public void Draw(TextView textView, DrawingContext ctx)
+    {
+        if (string.IsNullOrEmpty(Text) || Offset < 0 || textView.Document is null || !textView.VisualLinesValid) return;
+        var loc = textView.Document.GetLocation(Math.Min(Offset, textView.Document.TextLength));
+        var pos = textView.GetVisualPosition(new AvaloniaEdit.TextViewPosition(loc), VisualYPosition.LineTop) - textView.ScrollOffset;
+        var typeface = new Typeface(textView.GetValue(TextBlock.FontFamilyProperty), FontStyle.Italic);
+        var text = new FormattedText(Text, System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface,
+            textView.GetValue(TextBlock.FontSizeProperty), new SolidColorBrush(ThemeManager.Color("FgMuted"), 0.75));
+        var lineHeight = textView.DefaultLineHeight;
+        ctx.DrawText(text, new Point(pos.X, pos.Y + (lineHeight - text.Height) / 2));
+    }
+}
+
 public sealed partial class EditorView
 {
     private ErrorStripe? _stripe;
+    private readonly GhostTextRenderer _ghost = new();
+    private static readonly System.Text.RegularExpressions.Regex TrailingWords =
+        new(@"(?:([A-Za-z_#][A-Za-z0-9_]*|<|::|->|=>)[ \t]+)?([A-Za-z_#][A-Za-z0-9_]*|<|::|->|=>)[ \t]$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private void InstallGhost()
+    {
+        Editor.TextArea.TextView.BackgroundRenderers.Add(_ghost);
+        Editor.TextArea.Caret.PositionChanged += (_, _) => { if (Editor.CaretOffset != _ghost.Offset) ClearGhost(); };
+    }
+
+    /// <summary>
+    /// IntelliCode-style: right after "word " (e.g. "private "), suggests the clearly predictable
+    /// next word (e.g. "static") as gray text, from what this project's code usually does.
+    /// </summary>
+    private void ScheduleGhost()
+    {
+        ClearGhost();
+        if (!_host.Settings.SmartSuggestions || Doc.IsLarge || _completion is not null || _snippet is { IsActive: true }) return;
+        var caret = Editor.CaretOffset;
+        var line = Doc.Text.GetLineByOffset(caret);
+        var rest = Doc.Text.GetText(caret, line.EndOffset - caret);
+        if (rest.Trim().Trim(')', ']', '}', ';').Length > 0) return; // only at the end of the line
+        var before = Doc.Text.GetText(line.Offset, caret - line.Offset);
+        var m = TrailingWords.Match(before);
+        if (!m.Success) return;
+        var prev2 = m.Groups[1].Success ? m.Groups[1].Value : null;
+        var suggestion = TokenPredictor.Predict(Doc.LanguageId, prev2, m.Groups[2].Value);
+        if (suggestion is null) return;
+        _ghost.Text = suggestion;
+        _ghost.Offset = caret;
+        Editor.TextArea.TextView.InvalidateLayer(_ghost.Layer);
+    }
+
+    private bool HasGhost => !string.IsNullOrEmpty(_ghost.Text) && _ghost.Offset == Editor.CaretOffset;
+
+    private void AcceptGhost()
+    {
+        var text = _ghost.Text!;
+        var at = _ghost.Offset;
+        ClearGhost();
+        Doc.Text.Insert(at, text);
+        Editor.CaretOffset = at + text.Length;
+    }
+
+    private void ClearGhost()
+    {
+        if (_ghost.Text is null) return;
+        _ghost.Text = null;
+        _ghost.Offset = -1;
+        Editor.TextArea.TextView.InvalidateLayer(_ghost.Layer);
+    }
     private InlayHintGenerator? _inlays;
     private Avalonia.Threading.DispatcherTimer? _inlayTimer;
 
@@ -170,6 +241,7 @@ public sealed partial class EditorView
 
         RefreshStripe();
         _inlayTimer.Start();
+        InstallGhost();
     }
 
     /// <summary>Rebuilds the stripe marks from diagnostics and TODO comments.</summary>

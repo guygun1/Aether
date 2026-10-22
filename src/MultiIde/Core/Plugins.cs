@@ -32,6 +32,8 @@ public sealed class PluginContributions
     public List<SettingContribution> Settings { get; set; } = new();
     public List<KeybindingContribution> Keybindings { get; set; } = new();
     public List<DependencyManagerContribution> DependencyManagers { get; set; } = new();
+    /// <summary>Optional extras for another plugin's project template (a checkbox in New Project).</summary>
+    public List<ProjectTemplateOption> ProjectTemplateOptions { get; set; } = new();
     /// <summary>File icons by exact file name ("Cargo.toml") or extension (".lock").</summary>
     public Dictionary<string, FileIconContribution> FileIcons { get; set; } = new();
 }
@@ -155,6 +157,20 @@ public sealed class LspServerConfig
     public string? Install { get; set; }
     public string? InstallUrl { get; set; }
     public Dictionary<string, string> Env { get; set; } = new();
+    /// <summary>Where to download the server when the install command's tool is missing (per OS).</summary>
+    public DownloadSpec? Download { get; set; }
+    /// <summary>A file that must exist for the server to count as installed (e.g. a script run by "python").</summary>
+    public string? Requires { get; set; }
+    /// <summary>A tool the server needs at run time (e.g. cargo for rust-analyzer), offered for install.</summary>
+    public Prerequisite? Prerequisite { get; set; }
+}
+
+public sealed class Prerequisite
+{
+    public string Command { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Install { get; set; }
+    public string? Url { get; set; }
 }
 
 public sealed class SnippetContribution
@@ -186,10 +202,29 @@ public sealed class ProjectTemplate
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
+    /// <summary>Short badge text (e.g. "RS") and color shown in the New Project list.</summary>
+    public string? Icon { get; set; }
+    public string? IconColor { get; set; }
+    /// <summary>Group heading in the New Project list (e.g. "Rust", "C++", "Graphics").</summary>
+    public string? Category { get; set; }
     /// <summary>Command run in the parent folder; <c>${name}</c> is the project name.</summary>
     public string? Command { get; set; }
     /// <summary>Files written into the new project folder (path → contents).</summary>
     public Dictionary<string, JsonNode?> Files { get; set; } = new();
+}
+
+/// <summary>An opt-in addition to a project template, e.g. "Graphics: GLFW" for the C++ template.</summary>
+public sealed class ProjectTemplateOption
+{
+    /// <summary>Id of the project template this option extends.</summary>
+    public string Template { get; set; } = "";
+    public string Id { get; set; } = "";
+    public string Label { get; set; } = "";
+    public string Description { get; set; } = "";
+    /// <summary>Files written (or replaced) in the new project after the template ran.</summary>
+    public Dictionary<string, JsonNode?> Files { get; set; } = new();
+    /// <summary>Commands run in the new project folder, in order (e.g. "cargo add winit").</summary>
+    public List<string> Commands { get; set; } = new();
 }
 
 public sealed class Plugin
@@ -319,6 +354,9 @@ public sealed class PluginManager
     public IEnumerable<SnippetContribution> SnippetsFor(string languageId) =>
         Enabled.SelectMany(p => p.Manifest.Contributes.Snippets).Where(s => s.Language == languageId || s.Language == "*");
 
+    public IEnumerable<ProjectTemplateOption> TemplateOptions(string templateId) =>
+        Enabled.SelectMany(p => p.Manifest.Contributes.ProjectTemplateOptions).Where(o => o.Template == templateId);
+
     public IEnumerable<ProjectTemplate> ProjectTemplates() =>
         Enabled.SelectMany(p => p.Manifest.Contributes.ProjectTemplates);
 
@@ -404,6 +442,8 @@ public sealed class PluginManager
         value.Replace("${workspaceFolder}", workspace ?? "")
              .Replace("${pluginDir}", pluginDir ?? "")
              .Replace("${home}", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+             .Replace("${workspaceFolderName}", workspace is null ? "default" : Path.GetFileName(workspace))
+             .Replace("${os}", OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "mac" : "linux")
              .Replace("${name}", name ?? "");
 
     /// <summary>Copies a plugin folder into the user plugin directory.</summary>

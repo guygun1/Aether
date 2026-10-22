@@ -93,7 +93,10 @@
             "CompileFlags:",
             "  CompilationDatabase: build"
           ]
-        }
+        },
+        "icon": "C++",
+        "iconColor": "#4C8CD8",
+        "category": "C++"
       },
       {
         "id": "cpp-cmake-lib",
@@ -124,7 +127,10 @@
             "build/",
             ".cache/"
           ]
-        }
+        },
+        "icon": "LIB",
+        "iconColor": "#3A6FB0",
+        "category": "C++"
       }
     ],
     "snippets": [

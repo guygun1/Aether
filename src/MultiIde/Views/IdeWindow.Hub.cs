@@ -234,8 +234,44 @@ public abstract partial class IdeWindow
         if (templates.Count == 0) return new TextBlock { Text = "No project templates. Enable a language plugin (Rust, C++, C#) first.", Classes = { "muted" } };
 
         var selected = templates[0];
-        var templateList = new ListBox { Width = 220, ItemsSource = templates.Select(t => t.Name).ToList(), SelectedIndex = 0 };
+        var templateList = new ListBox
+        {
+            Width = 280,
+            ItemsSource = templates,
+            SelectedIndex = 0,
+            ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<ProjectTemplate>((t, _) => t is null ? new TextBlock() : new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 10,
+                Margin = new Thickness(0, 3),
+                Children =
+                {
+                    new Border
+                    {
+                        Width = 30, Height = 30, CornerRadius = new CornerRadius(7),
+                        Background = new SolidColorBrush(Color.Parse(t.IconColor ?? "#6F737A")),
+                        Child = new TextBlock
+                        {
+                            Text = t.Icon ?? (t.Name.Length > 0 ? t.Name[..Math.Min(2, t.Name.Length)].ToUpperInvariant() : "?"),
+                            FontWeight = FontWeight.Bold, FontSize = 11, Foreground = Brushes.White,
+                            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                        },
+                    },
+                    new StackPanel
+                    {
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children =
+                        {
+                            new TextBlock { Text = t.Name.Contains(": ") ? t.Name[(t.Name.IndexOf(": ") + 2)..] : t.Name, FontWeight = FontWeight.SemiBold },
+                            new TextBlock { Text = t.Category ?? (t.Name.Contains(": ") ? t.Name[..t.Name.IndexOf(':')] : ""), Classes = { "muted" }, FontSize = 11 },
+                        },
+                    },
+                },
+            }),
+        };
         var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" } };
+        var optionsPanel = new StackPanel { Spacing = 6 };
+        var chosenOptions = new List<ProjectTemplateOption>();
         var name = new TextBox { Text = "untitled" };
         var location = new TextBox { Text = DefaultProjectsDir() };
         var browse = new Button { Content = "…", Classes = { "secondary" }, Padding = new Thickness(10, 4) };
@@ -248,6 +284,17 @@ public abstract partial class IdeWindow
         {
             selected = templates[Math.Max(0, templateList.SelectedIndex)];
             description.Text = selected.Description;
+            // Opt-in extras other plugins offer for this template (e.g. a graphics setup).
+            optionsPanel.Children.Clear();
+            chosenOptions.Clear();
+            foreach (var option in Plugins.TemplateOptions(selected.Id))
+            {
+                var o = option;
+                var box = new CheckBox { Content = o.Label };
+                box.IsCheckedChanged += (_, _) => { if (box.IsChecked == true) chosenOptions.Add(o); else chosenOptions.Remove(o); };
+                optionsPanel.Children.Add(new StackPanel { Children = { box, new TextBlock { Text = o.Description, Classes = { "muted" }, FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(28, 0, 0, 0) } } });
+            }
+            if (optionsPanel.Children.Count > 0) optionsPanel.Children.Insert(0, new TextBlock { Text = "Options", FontWeight = FontWeight.SemiBold });
             preview.Text = $"Project will be created in: {Path.Combine(location.Text ?? "", name.Text ?? "")}";
         }
         templateList.SelectionChanged += (_, _) => Update();
@@ -264,7 +311,7 @@ public abstract partial class IdeWindow
             create.IsEnabled = false;
             status.Foreground = Res("FgMuted");
             status.Text = "Creating…";
-            var error = await CreateProjectAsync(selected, (name.Text ?? "").Trim(), (location.Text ?? "").Trim());
+            var error = await CreateProjectAsync(selected, (name.Text ?? "").Trim(), (location.Text ?? "").Trim(), chosenOptions.ToList());
             create.IsEnabled = true;
             if (error is null) { if (OverlayOpen) { _overlayCancel = null; CloseOverlay(); } }
             else { status.Foreground = Res("Error"); status.Text = error; }
@@ -288,6 +335,7 @@ public abstract partial class IdeWindow
             Children =
             {
                 description,
+                optionsPanel,
                 Field("Name:", name),
                 Field("Location:", locationRow),
                 preview,
@@ -302,7 +350,7 @@ public abstract partial class IdeWindow
     }
 
     /// <summary>Creates a project from a template; returns an error message or null on success.</summary>
-    private async Task<string?> CreateProjectAsync(ProjectTemplate template, string name, string location)
+    private async Task<string?> CreateProjectAsync(ProjectTemplate template, string name, string location, List<ProjectTemplateOption>? options = null)
     {
         if (name.Length == 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return "Enter a valid project name.";
         if (location.Length == 0) return "Choose a location.";
@@ -341,6 +389,29 @@ public abstract partial class IdeWindow
         {
             return e.Message;
         }
+        // Opt-in template options (files first, then their commands, e.g. "cargo add winit").
+        foreach (var option in options ?? new())
+        {
+            try
+            {
+                foreach (var (relative, content) in option.Files)
+                {
+                    var file = Path.Combine(dir, PluginManager.Expand(relative, dir, null, name));
+                    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+                    await File.WriteAllTextAsync(file, PluginManager.Expand(FileTemplateContribution.Text(content), dir, null, name) + Environment.NewLine);
+                }
+                foreach (var command in option.Commands)
+                {
+                    var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(PluginManager.Expand(command, dir, null, name), dir);
+                    if (code != 0) Notify($"{option.Label}: '{command}' failed:{Environment.NewLine}{(stderr + stdout).Trim()}", true);
+                }
+            }
+            catch (Exception e)
+            {
+                Notify($"{option.Label}: {e.Message}", true);
+            }
+        }
+
         // Code style files matching the chosen preset (kept if the template brought its own).
         foreach (var (file, content) in CodeStyles.ProjectFiles(Settings))
         {
@@ -367,7 +438,12 @@ public abstract partial class IdeWindow
         folder.Click += (_, _) => { Directory.CreateDirectory(IdePaths.UserPlugins); ProcessUtil.OpenInFileManager(IdePaths.UserPlugins); };
         var refresh = new Button { Content = "Reload", Classes = { "secondary" } };
         refresh.Click += (_, _) => { Plugins.Reload(); reload(); };
-        panel.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { install, create, folder, refresh } });
+        var addLanguage = new Button { Content = "Add Language Support…", Classes = { "primary" } };
+        addLanguage.Click += (_, _) => ShowLanguageWizard(reload);
+        var convert = new Button { Content = "Convert IntelliJ Plugin…", Classes = { "secondary" } };
+        convert.Click += async (_, _) => { await ConvertIntelliJPluginAsync(); reload(); };
+        panel.Children.Add(new WrapPanel { Children = { addLanguage, convert, install, create, folder, refresh } });
+        foreach (var b in new Control[] { addLanguage, convert, install, create, folder, refresh }) b.Margin = new Thickness(0, 0, 8, 8);
         panel.Children.Add(new TextBlock
         {
             Text = "Plugins are folders with a plugin.json. They can add languages, language servers (LSP), themes, commands, formatters, file templates, snippets, run configurations, project templates and settings.",
@@ -483,7 +559,7 @@ public abstract partial class IdeWindow
         {
             var cfg = config;
             var command = PluginManager.Expand(cfg.Command, ProjectRoot, plugin.Directory);
-            var resolved = ProcessUtil.Resolve(command);
+            var resolved = cfg.Requires is { } req && !File.Exists(PluginManager.Expand(req, ProjectRoot, plugin.Directory)) ? null : ProcessUtil.Resolve(command);
             var client = RunningServer(cfg.Id);
             var state = client?.State switch
             {
@@ -494,7 +570,7 @@ public abstract partial class IdeWindow
             };
 
             var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-            if (!string.IsNullOrEmpty(cfg.Install))
+            if (!string.IsNullOrEmpty(cfg.Install) || cfg.Download?.UrlForThisOs() is not null)
             {
                 var install = new Button { Content = resolved is null ? "Install" : "Reinstall", Classes = { resolved is null ? "primary" : "secondary" }, Padding = new Thickness(10, 3) };
                 install.Click += (_, _) =>
@@ -557,26 +633,71 @@ public abstract partial class IdeWindow
         return panel;
     }
 
-    /// <summary>Installs a language server from the Welcome hub, where no Run tool window is visible.</summary>
+    /// <summary>Installs a language server from the Welcome hub.</summary>
     protected async void RunInstallWithoutProject(LspServerConfig cfg)
     {
-        Notify($"Installing {cfg.Name}: {cfg.Install}");
+        await InstallServerAsync(cfg);
+        RefreshHub();
+    }
+
+    /// <summary>
+    /// Installs a plugin's language server: runs its install command when the tool that command
+    /// needs exists (e.g. rustup), otherwise downloads it (the plugin's "download"). Afterwards it
+    /// checks the server's prerequisite (e.g. cargo for rust-analyzer) and offers to install that too.
+    /// </summary>
+    protected async Task<bool> InstallServerAsync(LspServerConfig cfg)
+    {
+        var plugin = Plugins.AllLspServers().FirstOrDefault(x => x.Config == cfg).Plugin;
+        var install = cfg.Install is { Length: > 0 } i ? PluginManager.Expand(i, ProjectRoot, plugin?.Directory) : null;
+        var program = install?.Split(' ', 2)[0];
+        var canRunCommand = install is not null && ProcessUtil.Resolve(program!) is not null;
+        var ok = false;
         try
         {
-            var psi = ProcessUtil.ShellStartInfo(cfg.Install!, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-            using var p = Process.Start(psi)!;
-            p.StandardInput.Close();
-            var output = Task.WhenAll(p.StandardOutput.ReadToEndAsync(), p.StandardError.ReadToEndAsync());
-            await p.WaitForExitAsync();
-            var text = string.Join("\n", await output).Trim();
-            if (p.ExitCode == 0) Notify($"{cfg.Name} installed.");
-            else Notify($"Installing {cfg.Name} failed (exit code {p.ExitCode}):\n{(text.Length > 600 ? text[^600..] : text)}", true);
+            if (canRunCommand)
+            {
+                Notify($"Installing {cfg.Name}: {install}");
+                var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(install!, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                var text = (stderr + stdout).Trim();
+                ok = code == 0;
+                if (!ok) Notify($"Installing {cfg.Name} failed (exit code {code}):{Environment.NewLine}{(text.Length > 600 ? text[^600..] : text)}", true);
+            }
+            else if (cfg.Download?.UrlForThisOs() is not null)
+            {
+                Notify($"Downloading {cfg.Name}…");
+                await ToolInstaller.InstallAsync(cfg.Id, cfg.Download, msg => Dispatcher.UIThread.Post(() => OnStatus(msg)));
+                ok = true;
+            }
+            else if (install is not null)
+            {
+                Notify($"Can't install {cfg.Name}: '{program}' is not installed.{(cfg.InstallUrl is null ? "" : $" See {cfg.InstallUrl}")}", true);
+            }
+            else if (cfg.InstallUrl is not null)
+            {
+                OpenUrl(cfg.InstallUrl);
+            }
         }
         catch (Exception e)
         {
-            Notify(e.Message, true);
+            Notify($"Installing {cfg.Name} failed: {e.Message}", true);
         }
-        RefreshHub();
+        if (ok) Notify($"{cfg.Name} installed.");
+
+        if (cfg.Prerequisite is { } pre && ProcessUtil.Resolve(pre.Command) is null)
+        {
+            var actions = new List<(string, Action)>();
+            if (pre.Install is { } preInstall)
+                actions.Add(($"Install {pre.Name}", async () =>
+                {
+                    Notify($"Installing {pre.Name}… (this can take a few minutes)");
+                    var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(preInstall, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                    if (code == 0) Notify($"{pre.Name} installed. Restart Aether so it picks up the new PATH.");
+                    else Notify($"Installing {pre.Name} failed:{Environment.NewLine}{(stderr + stdout).Trim()}", true);
+                }));
+            if (pre.Url is { } url) actions.Add(("Instructions", () => OpenUrl(url)));
+            ShowBalloon($"{cfg.Name} needs {pre.Name}", $"'{pre.Command}' was not found. {cfg.Name} uses it to understand your projects.", false, actions.ToArray());
+        }
+        return ok;
     }
 
     // ---- Learn ----------------------------------------------------------------

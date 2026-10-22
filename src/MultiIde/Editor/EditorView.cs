@@ -458,6 +458,7 @@ public sealed partial class EditorView : UserControl
 
         if (settings.ParameterHints && signatureTriggers.Contains(e.Text)) _ = SignatureHelpAsync(e.Text);
         else if (c == ')') _insight?.Close();
+        ScheduleGhost();
     }
 
     private void AutoClose(char c, int caret)
@@ -515,8 +516,21 @@ public sealed partial class EditorView : UserControl
                 var ordered = list.OfType<JsonObject>()
                     .OrderBy(i => LspUtil.Str(i["sortText"] ?? i["label"]), StringComparer.Ordinal)
                     .ToList();
+                // IntelliCode-style: up to 5 of your most-picked items are starred and ranked first.
+                var lang = Doc.LanguageId;
+                var starred = ordered
+                    .Select(o => (Item: o, Score: CompletionUsage.Score(lang, LspUtil.Str(o["label"]))))
+                    .Where(x => x.Score > 0).OrderByDescending(x => x.Score).Take(5)
+                    .Select(x => x.Item).ToHashSet();
                 for (var i = 0; i < ordered.Count; i++)
-                    items.Add(new CompletionItemData(ordered[i], lsp, Doc, caret, -i));
+                {
+                    var isStarred = starred.Contains(ordered[i]);
+                    items.Add(new CompletionItemData(ordered[i], lsp, Doc, caret, isStarred ? 1000 - i : -i) { Starred = isStarred });
+                }
+                // Stable reorder (OrderBy keeps the server's ranking within each group).
+                var reordered = items.OrderByDescending(x => x is CompletionItemData { Starred: true }).ToList();
+                items.Clear();
+                items.AddRange(reordered);
             }
             catch
             {
@@ -709,6 +723,13 @@ public sealed partial class EditorView : UserControl
         var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
 
         if (_popup.IsOpen && e.Key is not (Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift)) HidePopup();
+
+        // AI ghost text: Tab accepts, Esc dismisses, anything else just clears it.
+        if (HasGhost && _completion is null)
+        {
+            if (e.Key == Key.Tab && !ctrl && !alt && !shift) { AcceptGhost(); e.Handled = true; return; }
+            if (e.Key == Key.Escape) { ClearGhost(); e.Handled = true; return; }
+        }
 
         // An active live template owns Tab / Shift+Tab / Enter / Esc (unless the completion popup is open).
         if (_snippet is { IsActive: true } session && _completion is null && !ctrl && !alt)

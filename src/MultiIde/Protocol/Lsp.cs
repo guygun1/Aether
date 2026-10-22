@@ -94,10 +94,24 @@ public sealed class LspClient : IAsyncDisposable
         StateChanged?.Invoke();
     }
 
+    /// <summary>An argument that is a path with "*" in its file name resolves to the first match (e.g. versioned jars).</summary>
+    private static string ResolveGlob(string arg)
+    {
+        if (!arg.Contains('*')) return arg;
+        var dir = Path.GetDirectoryName(arg);
+        if (dir is null || !Directory.Exists(dir)) return arg;
+        return Directory.GetFiles(dir, Path.GetFileName(arg)).OrderByDescending(f => f).FirstOrDefault() ?? arg;
+    }
+
     public async Task StartAsync()
     {
         SetState(ServerState.Starting);
         var command = PluginManager.Expand(Config.Command, Root, Plugin.Directory);
+        if (Config.Requires is { } required && !File.Exists(PluginManager.Expand(required, Root, Plugin.Directory)))
+        {
+            SetState(ServerState.Failed, $"{Config.Name} is not installed.");
+            return;
+        }
         if (ProcessUtil.Resolve(command) is null)
         {
             SetState(ServerState.Failed, $"`{command}` was not found on PATH.");
@@ -106,7 +120,7 @@ public sealed class LspClient : IAsyncDisposable
 
         try
         {
-            var args = Config.Args.Select(a => PluginManager.Expand(a, Root, Plugin.Directory));
+            var args = Config.Args.Select(a => ResolveGlob(PluginManager.Expand(a, Root, Plugin.Directory)));
             _process = Process.Start(ProcessUtil.StdioStartInfo(command, args, Root))
                        ?? throw new InvalidOperationException("Process did not start");
             _process.EnableRaisingEvents = true;

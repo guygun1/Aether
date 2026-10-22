@@ -1,0 +1,476 @@
+{
+  "id": "graphics",
+  "name": "Graphics & Shaders",
+  "version": "0.1.0",
+  "description": "Everything for writing your own engine or graphics code: GLSL/HLSL/WGSL shader languages with highlighting and the glsl_analyzer language server, shader snippets and file templates, shader validation and SPIR-V compilation, and optional graphics setups for new C++ (GLFW + GLEW + GLM), C# (Silk.NET) and Rust (winit) projects. Disable it if you don't do graphics.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "glsl",
+        "name": "GLSL",
+        "extensions": [
+          ".glsl",
+          ".vert",
+          ".frag",
+          ".geom",
+          ".comp",
+          ".tesc",
+          ".tese",
+          ".vs",
+          ".fs",
+          ".mesh",
+          ".task",
+          ".rgen",
+          ".rchit",
+          ".rmiss"
+        ],
+        "grammar": "glsl.tmLanguage.json",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "GL",
+        "iconColor": "#5586A4"
+      },
+      {
+        "id": "hlsl",
+        "name": "HLSL",
+        "extensions": [
+          ".hlsl",
+          ".hlsli",
+          ".fx",
+          ".fxh",
+          ".usf",
+          ".ush"
+        ],
+        "scopeName": "source.hlsl",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "HL",
+        "iconColor": "#7A5FB0"
+      },
+      {
+        "id": "wgsl",
+        "name": "WGSL",
+        "extensions": [
+          ".wgsl"
+        ],
+        "grammar": "wgsl.tmLanguage.json",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "WG",
+        "iconColor": "#2AACB8"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "glsl_analyzer",
+        "name": "glsl_analyzer",
+        "command": "glsl_analyzer",
+        "languages": [
+          "glsl"
+        ],
+        "installUrl": "https://github.com/nolanderc/glsl_analyzer/releases",
+        "download": {
+          "url": {
+            "windows": "https://github.com/nolanderc/glsl_analyzer/releases/latest/download/x86_64-windows.zip",
+            "linux": "https://github.com/nolanderc/glsl_analyzer/releases/latest/download/x86_64-linux-musl.zip",
+            "macos": "https://github.com/nolanderc/glsl_analyzer/releases/latest/download/aarch64-macos.zip"
+          },
+          "executable": "glsl_analyzer"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "glsl",
+        "prefix": "vert",
+        "description": "Vertex shader",
+        "body": [
+          "#version ${1:330} core",
+          "",
+          "layout (location = 0) in vec3 aPos;",
+          "",
+          "uniform mat4 uModel;",
+          "uniform mat4 uView;",
+          "uniform mat4 uProjection;",
+          "",
+          "void main()",
+          "{",
+          "\tgl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);$0",
+          "}"
+        ]
+      },
+      {
+        "language": "glsl",
+        "prefix": "frag",
+        "description": "Fragment shader",
+        "body": [
+          "#version ${1:330} core",
+          "",
+          "out vec4 FragColor;",
+          "",
+          "void main()",
+          "{",
+          "\tFragColor = vec4(${2:1.0, 0.5, 0.2}, 1.0);$0",
+          "}"
+        ]
+      },
+      {
+        "language": "glsl",
+        "prefix": "comp",
+        "description": "Compute shader",
+        "body": [
+          "#version 430",
+          "layout (local_size_x = ${1:16}, local_size_y = ${2:16}) in;",
+          "",
+          "void main()",
+          "{",
+          "\tivec2 id = ivec2(gl_GlobalInvocationID.xy);$0",
+          "}"
+        ]
+      },
+      {
+        "language": "glsl",
+        "prefix": "uniform",
+        "description": "Uniform",
+        "body": "uniform ${1|float,vec2,vec3,vec4,mat4,sampler2D|} ${2:uName};$0"
+      },
+      {
+        "language": "hlsl",
+        "prefix": "vs",
+        "description": "Vertex shader entry",
+        "body": [
+          "struct VSOut { float4 pos : SV_Position; };",
+          "",
+          "VSOut main(float3 pos : POSITION)",
+          "{",
+          "\tVSOut o;",
+          "\to.pos = float4(pos, 1.0);$0",
+          "\treturn o;",
+          "}"
+        ]
+      },
+      {
+        "language": "wgsl",
+        "prefix": "vertex",
+        "description": "Vertex entry point",
+        "body": [
+          "@vertex",
+          "fn ${1:vs_main}(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {",
+          "\t$0",
+          "}"
+        ]
+      },
+      {
+        "language": "cpp",
+        "prefix": "glcheck",
+        "description": "OpenGL error check",
+        "body": "while (GLenum err = glGetError()) { std::cerr << \"GL error \" << err << \" at \" << __FILE__ << \":\" << __LINE__ << '\\n'; }$0"
+      }
+    ],
+    "fileTemplates": [
+      {
+        "name": "Vertex Shader",
+        "extension": ".vert",
+        "body": [
+          "#version 330 core",
+          "",
+          "layout (location = 0) in vec3 aPos;",
+          "",
+          "void main()",
+          "{",
+          "    gl_Position = vec4(aPos, 1.0);",
+          "}"
+        ]
+      },
+      {
+        "name": "Fragment Shader",
+        "extension": ".frag",
+        "body": [
+          "#version 330 core",
+          "",
+          "out vec4 FragColor;",
+          "",
+          "void main()",
+          "{",
+          "    FragColor = vec4(1.0);",
+          "}"
+        ]
+      },
+      {
+        "name": "Compute Shader",
+        "extension": ".comp",
+        "body": [
+          "#version 430",
+          "layout (local_size_x = 16, local_size_y = 16) in;",
+          "",
+          "void main()",
+          "{",
+          "}"
+        ]
+      },
+      {
+        "name": "WGSL Shader",
+        "extension": ".wgsl",
+        "body": [
+          "@vertex",
+          "fn vs_main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {",
+          "    return vec4f(0.0, 0.0, 0.0, 1.0);",
+          "}",
+          "",
+          "@fragment",
+          "fn fs_main() -> @location(0) vec4f {",
+          "    return vec4f(1.0);",
+          "}"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "id": "glsl-validate",
+        "title": "Validate Shader (glslangValidator)",
+        "command": "glslangValidator \"${file}\"",
+        "languages": [
+          "glsl"
+        ],
+        "output": "notify",
+        "menus": [
+          "editor",
+          "tools"
+        ]
+      },
+      {
+        "id": "glsl-spirv",
+        "title": "Compile Shader to SPIR-V (glslc)",
+        "command": "glslc \"${file}\" -o \"${file}.spv\"",
+        "languages": [
+          "glsl"
+        ],
+        "output": "notify",
+        "menus": [
+          "editor",
+          "tools"
+        ]
+      }
+    ],
+    "projectTemplateOptions": [
+      {
+        "template": "cpp-cmake-exe",
+        "id": "graphics-glfw",
+        "label": "Graphics: GLFW + GLEW + GLM",
+        "description": "Window, OpenGL 3.3 context, a render loop and shaders in shaders/. CMake downloads GLFW, GLEW and GLM.",
+        "files": {
+          "CMakeLists.txt": [
+            "cmake_minimum_required(VERSION 3.20)",
+            "project(${name} LANGUAGES C CXX)",
+            "",
+            "set(CMAKE_CXX_STANDARD 20)",
+            "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)",
+            "",
+            "include(FetchContent)",
+            "set(GLFW_BUILD_DOCS OFF CACHE BOOL \"\" FORCE)",
+            "set(GLFW_BUILD_TESTS OFF CACHE BOOL \"\" FORCE)",
+            "set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL \"\" FORCE)",
+            "FetchContent_Declare(glfw GIT_REPOSITORY https://github.com/glfw/glfw.git GIT_TAG 3.4)",
+            "FetchContent_Declare(glew GIT_REPOSITORY https://github.com/Perlmint/glew-cmake.git GIT_TAG glew-cmake-2.2.0)",
+            "FetchContent_Declare(glm GIT_REPOSITORY https://github.com/g-truc/glm.git GIT_TAG 1.0.1)",
+            "FetchContent_MakeAvailable(glfw glew glm)",
+            "find_package(OpenGL REQUIRED)",
+            "",
+            "add_executable(${name} src/main.cpp)",
+            "target_link_libraries(${name} PRIVATE glfw libglew_static glm::glm OpenGL::GL)",
+            "",
+            "# Shaders are copied next to the executable on every build.",
+            "add_custom_command(TARGET ${name} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/shaders $<TARGET_FILE_DIR:${name}>/shaders)",
+            "add_custom_target(run COMMAND ${name} DEPENDS ${name} WORKING_DIRECTORY $<TARGET_FILE_DIR:${name}>)"
+          ],
+          "src/main.cpp": [
+            "#include <GL/glew.h>",
+            "#include <GLFW/glfw3.h>",
+            "",
+            "#include <fstream>",
+            "#include <iostream>",
+            "#include <sstream>",
+            "#include <string>",
+            "",
+            "static std::string readFile(const char* path) {",
+            "    std::ifstream in(path);",
+            "    std::stringstream ss;",
+            "    ss << in.rdbuf();",
+            "    return ss.str();",
+            "}",
+            "",
+            "static GLuint compile(GLenum type, const char* path) {",
+            "    const std::string source = readFile(path);",
+            "    const char* src = source.c_str();",
+            "    GLuint shader = glCreateShader(type);",
+            "    glShaderSource(shader, 1, &src, nullptr);",
+            "    glCompileShader(shader);",
+            "    GLint ok = 0;",
+            "    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);",
+            "    if (!ok) {",
+            "        char log[1024];",
+            "        glGetShaderInfoLog(shader, sizeof log, nullptr, log);",
+            "        std::cerr << path << \": \" << log << std::endl;",
+            "    }",
+            "    return shader;",
+            "}",
+            "",
+            "int main() {",
+            "    if (!glfwInit()) return 1;",
+            "    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);",
+            "    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);",
+            "    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);",
+            "    GLFWwindow* window = glfwCreateWindow(960, 640, \"${name}\", nullptr, nullptr);",
+            "    if (!window) { glfwTerminate(); return 1; }",
+            "    glfwMakeContextCurrent(window);",
+            "    glfwSwapInterval(1);",
+            "    glewExperimental = GL_TRUE;",
+            "    if (glewInit() != GLEW_OK) return 1;",
+            "",
+            "    const float vertices[] = { -0.5f, -0.5f, 0.0f,  0.5f, -0.5f, 0.0f,  0.0f, 0.5f, 0.0f };",
+            "    GLuint vao = 0, vbo = 0;",
+            "    glGenVertexArrays(1, &vao);",
+            "    glGenBuffers(1, &vbo);",
+            "    glBindVertexArray(vao);",
+            "    glBindBuffer(GL_ARRAY_BUFFER, vbo);",
+            "    glBufferData(GL_ARRAY_BUFFER, sizeof vertices, vertices, GL_STATIC_DRAW);",
+            "    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);",
+            "    glEnableVertexAttribArray(0);",
+            "",
+            "    GLuint program = glCreateProgram();",
+            "    glAttachShader(program, compile(GL_VERTEX_SHADER, \"shaders/triangle.vert\"));",
+            "    glAttachShader(program, compile(GL_FRAGMENT_SHADER, \"shaders/triangle.frag\"));",
+            "    glLinkProgram(program);",
+            "",
+            "    while (!glfwWindowShouldClose(window)) {",
+            "        glClearColor(0.12f, 0.12f, 0.14f, 1.0f);",
+            "        glClear(GL_COLOR_BUFFER_BIT);",
+            "        glUseProgram(program);",
+            "        glBindVertexArray(vao);",
+            "        glDrawArrays(GL_TRIANGLES, 0, 3);",
+            "        glfwSwapBuffers(window);",
+            "        glfwPollEvents();",
+            "    }",
+            "    glfwTerminate();",
+            "    return 0;",
+            "}"
+          ],
+          "shaders/triangle.vert": [
+            "#version 330 core",
+            "layout (location = 0) in vec3 aPos;",
+            "out vec3 vColor;",
+            "",
+            "void main()",
+            "{",
+            "    vColor = aPos + 0.5;",
+            "    gl_Position = vec4(aPos, 1.0);",
+            "}"
+          ],
+          "shaders/triangle.frag": [
+            "#version 330 core",
+            "in vec3 vColor;",
+            "out vec4 FragColor;",
+            "",
+            "void main()",
+            "{",
+            "    FragColor = vec4(vColor, 1.0);",
+            "}"
+          ]
+        }
+      },
+      {
+        "template": "cs-console",
+        "id": "graphics-silknet",
+        "label": "Graphics: Silk.NET (windowing, OpenGL, input)",
+        "description": "Adds the Silk.NET packages and a window with an update/render loop.",
+        "commands": [
+          "dotnet add package Silk.NET.Windowing --version 2.22.0",
+          "dotnet add package Silk.NET.OpenGL --version 2.22.0",
+          "dotnet add package Silk.NET.Input --version 2.22.0"
+        ],
+        "files": {
+          "Program.cs": [
+            "using Silk.NET.Input;",
+            "using Silk.NET.Maths;",
+            "using Silk.NET.OpenGL;",
+            "using Silk.NET.Windowing;",
+            "",
+            "var options = WindowOptions.Default with { Size = new Vector2D<int>(960, 640), Title = \"${name}\" };",
+            "using var window = Window.Create(options);",
+            "GL gl = null!;",
+            "",
+            "window.Load += () =>",
+            "{",
+            "    gl = window.CreateOpenGL();",
+            "    gl.ClearColor(0.12f, 0.12f, 0.14f, 1f);",
+            "    var input = window.CreateInput();",
+            "    foreach (var keyboard in input.Keyboards)",
+            "        keyboard.KeyDown += (_, key, _) => { if (key == Key.Escape) window.Close(); };",
+            "};",
+            "window.Update += delta => { /* game/engine update */ };",
+            "window.Render += delta => gl.Clear(ClearBufferMask.ColorBufferBit);",
+            "window.Run();"
+          ]
+        }
+      },
+      {
+        "template": "rust-bin",
+        "id": "graphics-winit",
+        "label": "Graphics: winit window + event loop",
+        "description": "Adds winit and a window event loop; add wgpu, glow or ash for rendering.",
+        "commands": [
+          "cargo add winit@0.30"
+        ],
+        "files": {
+          "src/main.rs": [
+            "use winit::application::ApplicationHandler;",
+            "use winit::event::WindowEvent;",
+            "use winit::event_loop::{ActiveEventLoop, EventLoop};",
+            "use winit::window::{Window, WindowId};",
+            "",
+            "#[derive(Default)]",
+            "struct App {",
+            "    window: Option<Window>,",
+            "}",
+            "",
+            "impl ApplicationHandler for App {",
+            "    fn resumed(&mut self, event_loop: &ActiveEventLoop) {",
+            "        let attributes = Window::default_attributes().with_title(\"${name}\");",
+            "        self.window = Some(event_loop.create_window(attributes).expect(\"create window\"));",
+            "    }",
+            "",
+            "    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {",
+            "        match event {",
+            "            WindowEvent::CloseRequested => event_loop.exit(),",
+            "            WindowEvent::RedrawRequested => {",
+            "                // Render a frame here, then ask for the next one.",
+            "                if let Some(window) = &self.window {",
+            "                    window.request_redraw();",
+            "                }",
+            "            }",
+            "            _ => {}",
+            "        }",
+            "    }",
+            "}",
+            "",
+            "fn main() {",
+            "    let event_loop = EventLoop::new().expect(\"event loop\");",
+            "    let mut app = App::default();",
+            "    event_loop.run_app(&mut app).expect(\"run\");",
+            "}"
+          ]
+        }
+      }
+    ]
+  }
+}
