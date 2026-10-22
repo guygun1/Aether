@@ -43,7 +43,7 @@ Legend: ✅ works · 🟡 partial · ❌ not yet
 | C# | csharp-ls | 🟡 `dotnet tool install` | dotnet run configs, NuGet dependencies |
 | Java | Eclipse jdtls | ✅ download (needs JDK 21+) | Gradle / Maven run configs and dependencies |
 | GLSL / WGSL | glsl_analyzer | ✅ download | (part of the graphics plugin) |
-| Minecraft modding | uses Java | | Paper, Fabric and NeoForge templates, runClient / runServer configs |
+| Minecraft modding | uses Java | | Paper, Velocity, Fabric, NeoForge and Forge wizards with live Minecraft / loader / API version pickers; runClient / runServer configs |
 
 The OpenGL / graphics options are template options on the existing C++, C# and Rust templates, not separate project types.
 
@@ -63,7 +63,8 @@ The OpenGL / graphics options are template options on the existing C++, C# and R
 |---|---|---|
 | JSON plugins | ✅ | Languages, language servers (with auto-download), themes, snippets, run configs, templates, dependency managers, commands, keybindings, settings. See [PLUGINS.md](PLUGINS.md) |
 | Add Language Support wizard | ✅ | One-click setup for common languages |
-| IntelliJ plugin converter | 🟡 | Converts the declarative parts (file types, live templates, colour schemes). JVM code cannot run |
+| Project template parameters | ✅ | Templates ask questions in New Project: text, choices, yes/no, and version lists loaded live (JSON, maven XML, git branches) that can depend on each other |
+| IntelliJ plugin converter | 🟡 | Converts what's declarative: file types, TextMate bundles (VS Code-style and plist), snippets, live templates, colour schemes, keymaps and "New" file templates. It attaches the standard language server and switches on Aether's native replacement for well-known plugins (Minecraft Development, Rust, Java …). The plugin's own JVM code can't run; the report shows what each part maps to in Aether |
 | Code plugins (C# assemblies) | ❌ | Plugins are declarative only |
 
 ## Settings and appearance

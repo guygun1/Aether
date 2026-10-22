@@ -99,6 +99,67 @@ These are expanded in commands, arguments and paths:
 - `command` runs in the parent folder.
 - `files` are written into the new project afterwards. A value can be a string or an array of lines.
 
+#### Template parameters (wizard questions)
+
+A template can ask questions in **New Project**. Answers are used as `${param.<id>}` in `command`, `files` (paths and contents), `properties`, `commands` and `open`.
+
+```json
+"parameters": [
+  { "id": "mc", "label": "Minecraft version", "type": "version",
+    "source": { "url": "https://github.com/FabricMC/fabric-example-mod", "format": "gitBranches", "regex": "^\\d+\\.\\d+(?:\\.\\d+)?$", "sort": "desc" } },
+  { "id": "fabricApi", "label": "Fabric API", "type": "version",
+    "source": { "url": "https://api.modrinth.com/v2/project/P7dR8mSH/version?game_versions=%5B%22${param.mc}%22%5D", "field": "version_number" } },
+  { "id": "java", "label": "Java version", "type": "choice", "options": ["25", "21", "17"], "default": "${param.mc|java}" },
+  { "id": "group", "label": "Group", "type": "string", "default": "com.example", "pattern": "^[a-z][a-z0-9_.]*$" },
+  { "id": "tests", "label": "Add tests", "type": "boolean", "default": "true" }
+]
+```
+
+- **`type`**:
+  - `string`: a text field, with optional `pattern` and `patternMessage` for validation.
+  - `choice`: picks from `options`.
+  - `boolean`: a checkbox whose value is `true` or `false`.
+  - `version`: a list loaded live from `source`.
+- **`hidden: true`** loads a value without showing it, e.g. the latest version of a Gradle plugin.
+- **`default`** can reference `${name}`, other parameters and `${env:NAME}`.
+- **Dependencies:** a parameter whose `default`, `source.url` or `source.regex` mentions `${param.x}` reloads when `x` changes.
+- **`source`** fields:
+  - `format`: `json` (the default), `xml` (e.g. a maven-metadata.xml), `gitBranches` (a repository's branches) or `lines`.
+  - `path`: a JSON dot path. If it points to an object, the object's array values are joined.
+  - `field`: which property of each item to use.
+  - `where`: keeps only items whose properties equal given values, e.g. `{ "stable": true }`.
+  - `regex`: keeps matching values only. A named group `(?<v>…)` becomes the value.
+  - `sort`: `desc` puts the newest version first.
+  - `limit`: maximum number of options.
+- **Filters**, written as `${name|id}` or `${param.x|filter}`:
+
+  | Filter | Effect |
+  |---|---|
+  | `lower`, `upper` | Change case |
+  | `id` | `snake_case` identifier |
+  | `pascal` | `ClassName` |
+  | `package` | Lowercase dotted package name |
+  | `path` | Dots become slashes |
+  | `majorminor` | `1.21.4` becomes `1.21` |
+  | `java` | The Java version that Minecraft version needs |
+  | `neoforge` | The NeoForge version prefix for that Minecraft version |
+
+Steps that run after the files are written:
+
+```json
+"properties": { "gradle.properties": { "mod_version": "${param.version}" } },
+"commands": ["gradle wrapper"],
+"delete": ["download.zip"],
+"open": "src/main/java/Main.java"
+```
+
+- **`properties`** changes keys that already exist in `.properties` files (keys the file lacks are ignored).
+- **`commands`** run in the new project; a failure is reported but the project is kept.
+- **`delete`** removes files or folders.
+- **`open`** is the file shown first.
+
+#### Template options
+
 Options add an opt-in checkbox to someone else's template:
 
 ```json

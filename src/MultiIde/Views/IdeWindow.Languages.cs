@@ -145,16 +145,71 @@ public abstract partial class IdeWindow
         try { report = await Task.Run(() => IntelliJConverter.Convert(path)); }
         catch (Exception e) { Notify($"Could not convert: {e.Message}", true); return; }
         Plugins.Reload();
+        // A native Aether replacement is switched on, so its templates and tools are there right away.
+        if (report.Native is { } native && Plugins.All.FirstOrDefault(p => p.Id == native.PluginId) is { Enabled: false } replacement)
+            Plugins.SetEnabled(replacement, true);
 
         var body = new StackPanel { Spacing = 6, MaxWidth = 640 };
         body.Children.Add(new TextBlock { Text = $"Installed as \"{report.Name} (converted)\" in {report.OutputDir}", TextWrapping = TextWrapping.Wrap, Classes = { "muted" } });
-        body.Children.Add(new TextBlock { Text = $"Converted ({report.Converted.Count})", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
-        foreach (var c in report.Converted) body.Children.Add(new TextBlock { Text = "✓ " + c, Foreground = Res("Success"), TextWrapping = TextWrapping.Wrap });
-        if (report.Skipped.Count > 0)
+
+        if (report.Native is { } n)
         {
-            body.Children.Add(new TextBlock { Text = "Not converted", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
-            foreach (var s in report.Skipped) body.Children.Add(new TextBlock { Text = "• " + s, Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+            body.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Res("Success") is ISolidColorBrush s ? s.Color : Colors.Green, 0.12),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 8),
+                Margin = new Thickness(0, 6, 0, 0),
+                Child = new StackPanel
+                {
+                    Spacing = 2,
+                    Children =
+                    {
+                        new TextBlock { Text = $"✓ Aether's own \"{n.Name}\" plugin replaces this plugin (enabled)", FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = n.Covers, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
+                    },
+                },
+            });
         }
-        ShowOverlay(Dialog("IntelliJ plugin converted", new ScrollViewer { Content = body, MaxHeight = 480 }, 700, ("Close", CloseOverlay)));
+
+        if (report.Converted.Count > 0)
+        {
+            body.Children.Add(new TextBlock { Text = $"Converted ({report.Converted.Count})", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+            foreach (var c in report.Converted) body.Children.Add(new TextBlock { Text = "✓ " + c, Foreground = Res("Success"), TextWrapping = TextWrapping.Wrap });
+        }
+
+        if (report.Sections.Count > 0)
+            body.Children.Add(new TextBlock { Text = "Plugin code, and what it maps to in Aether", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 10, 0, 0) });
+        foreach (var section in report.Sections)
+        {
+            var (mark, color) = section.Status switch
+            {
+                "native" => ("✓", "Success"),
+                "covered" => ("✓", "Success"),
+                "partial" => ("◐", "Link"),
+                "notNeeded" => ("–", "FgMuted"),
+                _ => ("✗", "Warning"),
+            };
+            var count = section.Items.Sum(i => i.Contains(" ×") && int.TryParse(i[(i.LastIndexOf('×') + 1)..], out var k) ? k : 1);
+            body.Children.Add(new Expander
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Header = new StackPanel
+                {
+                    Children =
+                    {
+                        new TextBlock { Text = $"{mark} {section.Title} ({count})", Foreground = Res(color), FontWeight = FontWeight.SemiBold },
+                        new TextBlock { Text = section.Explanation, Classes = { "muted" }, FontSize = 11.5, TextWrapping = TextWrapping.Wrap },
+                    },
+                },
+                Content = new SelectableTextBlock { Text = string.Join(", ", section.Items), FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Classes = { "muted" } },
+            });
+        }
+        if (report.Notes.Count > 0)
+        {
+            body.Children.Add(new TextBlock { Text = "Notes", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+            foreach (var s in report.Notes) body.Children.Add(new TextBlock { Text = "• " + s, Classes = { "muted" }, TextWrapping = TextWrapping.Wrap });
+        }
+        ShowOverlay(Dialog("IntelliJ plugin converted", new ScrollViewer { Content = body, MaxHeight = 520 }, 700, ("Close", CloseOverlay)));
     }
 }

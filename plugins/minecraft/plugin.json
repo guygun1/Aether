@@ -2,7 +2,7 @@
   "id": "aether.minecraft",
   "name": "Minecraft Modding",
   "version": "0.1.0",
-  "description": "Paper/Spigot plugins and Fabric/NeoForge mods: project templates, Gradle run tasks, Mixin and listener templates. Native replacement for the IntelliJ Minecraft Development plugin.",
+  "description": "Paper and Velocity plugins and Fabric, NeoForge and Forge mods: New Project wizards with live Minecraft/loader version pickers, Gradle run tasks, Mixin and listener templates. Native replacement for the IntelliJ Minecraft Development plugin.",
   "author": "Aether",
   "contributes": {
     "languages": [
@@ -21,10 +21,96 @@
       {
         "id": "mc-paper",
         "name": "Minecraft: Paper Plugin",
-        "description": "Paper server plugin (Gradle Kotlin DSL, Java 21, paper-api 1.21.4).",
         "icon": "PA",
         "iconColor": "#4E9DE3",
         "category": "Minecraft",
+        "description": "Paper server plugin with Gradle (Kotlin DSL) and run-paper, so \"Paper: runServer\" starts a test server. Versions are loaded live from PaperMC.",
+        "parameters": [
+          {
+            "id": "mc",
+            "label": "Minecraft version",
+            "type": "version",
+            "source": {
+              "url": "https://fill.papermc.io/v3/projects/paper",
+              "path": "versions",
+              "regex": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "api",
+            "label": "paper-api version",
+            "type": "version",
+            "hidden": true,
+            "source": {
+              "url": "https://repo.papermc.io/repository/maven-public/io/papermc/paper/paper-api/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^${param.mc}(?:-R0\\.1-SNAPSHOT|\\.build\\.\\d+-stable)$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "runPaper",
+            "label": "run-paper version",
+            "type": "version",
+            "hidden": true,
+            "options": [
+              "3.1.0"
+            ],
+            "source": {
+              "url": "https://plugins.gradle.org/m2/xyz/jpenilla/run-paper/xyz.jpenilla.run-paper.gradle.plugin/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^\\d+\\.\\d+\\.\\d+$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "java",
+            "label": "Java version",
+            "type": "choice",
+            "options": [
+              "25",
+              "21",
+              "17"
+            ],
+            "default": "${param.mc|java}",
+            "description": "Picked to match the Minecraft version."
+          },
+          {
+            "id": "pluginName",
+            "label": "Plugin name",
+            "type": "string",
+            "default": "${name|pascal}",
+            "pattern": "^[A-Za-z0-9_\\-]+$",
+            "patternMessage": "Letters, digits, - and _ only"
+          },
+          {
+            "id": "group",
+            "label": "Group / package base",
+            "type": "string",
+            "default": "com.example",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "patternMessage": "Lowercase package name, e.g. com.example"
+          },
+          {
+            "id": "version",
+            "label": "Version",
+            "type": "string",
+            "default": "1.0.0"
+          },
+          {
+            "id": "author",
+            "label": "Author",
+            "type": "string",
+            "default": "${env:USERNAME}"
+          },
+          {
+            "id": "description",
+            "label": "Description",
+            "type": "string",
+            "default": "A Paper plugin"
+          }
+        ],
         "files": {
           "settings.gradle.kts": [
             "rootProject.name = \"${name}\""
@@ -32,10 +118,11 @@
           "build.gradle.kts": [
             "plugins {",
             "\tjava",
+            "\tid(\"xyz.jpenilla.run-paper\") version \"${param.runPaper}\"",
             "}",
             "",
-            "group = \"com.example\"",
-            "version = \"1.0.0\"",
+            "group = \"${param.group}\"",
+            "version = \"${param.version}\"",
             "",
             "repositories {",
             "\tmavenCentral()",
@@ -43,33 +130,46 @@
             "}",
             "",
             "dependencies {",
-            "\tcompileOnly(\"io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT\")",
+            "\tcompileOnly(\"io.papermc.paper:paper-api:${param.api}\")",
             "}",
             "",
             "java {",
-            "\ttoolchain.languageVersion = JavaLanguageVersion.of(21)",
+            "\ttoolchain.languageVersion = JavaLanguageVersion.of(${param.java})",
+            "}",
+            "",
+            "tasks {",
+            "\trunServer {",
+            "\t\tminecraftVersion(\"${param.mc}\")",
+            "\t}",
+            "\tprocessResources {",
+            "\t\tval props = mapOf(\"version\" to version)",
+            "\t\tinputs.properties(props)",
+            "\t\tfilesMatching(\"plugin.yml\") { expand(props) }",
+            "\t}",
             "}"
           ],
           "src/main/resources/plugin.yml": [
-            "name: ${name}",
-            "version: 1.0.0",
-            "main: com.example.plugin.MainPlugin",
-            "api-version: '1.21'"
+            "name: ${param.pluginName}",
+            "version: '${version}'",
+            "main: ${param.group}.${name|id}.${param.pluginName|pascal}",
+            "api-version: '${param.mc|majorminor}'",
+            "description: ${param.description}",
+            "authors: [${param.author}]"
           ],
-          "src/main/java/com/example/plugin/MainPlugin.java": [
-            "package com.example.plugin;",
+          "src/main/java/${param.group|path}/${name|id}/${param.pluginName|pascal}.java": [
+            "package ${param.group}.${name|id};",
             "",
             "import org.bukkit.event.EventHandler;",
             "import org.bukkit.event.Listener;",
             "import org.bukkit.event.player.PlayerJoinEvent;",
             "import org.bukkit.plugin.java.JavaPlugin;",
             "",
-            "public final class MainPlugin extends JavaPlugin implements Listener {",
+            "public final class ${param.pluginName|pascal} extends JavaPlugin implements Listener {",
             "",
             "\t@Override",
             "\tpublic void onEnable() {",
             "\t\tgetServer().getPluginManager().registerEvents(this, this);",
-            "\t\tgetLogger().info(\"${name} enabled\");",
+            "\t\tgetLogger().info(\"${param.pluginName} enabled\");",
             "\t}",
             "",
             "\t@EventHandler",
@@ -81,27 +181,360 @@
           ".gitignore": [
             ".gradle/",
             "build/",
-            "run/"
+            "run/",
+            ".aether/workspace.json"
           ]
-        }
+        },
+        "commands": [
+          "gradle wrapper"
+        ],
+        "open": "src/main/java/${param.group|path}/${name|id}/${param.pluginName|pascal}.java"
+      },
+      {
+        "id": "mc-velocity",
+        "name": "Minecraft: Velocity Plugin",
+        "icon": "VE",
+        "iconColor": "#1BBAE0",
+        "category": "Minecraft",
+        "description": "Velocity proxy plugin with Gradle (Kotlin DSL) and run-velocity. Versions are loaded live from PaperMC.",
+        "parameters": [
+          {
+            "id": "velocity",
+            "label": "Velocity API version",
+            "type": "version",
+            "source": {
+              "url": "https://repo.papermc.io/repository/maven-public/com/velocitypowered/velocity-api/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^\\d+\\.\\d+\\.\\d+$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "runVelocity",
+            "label": "run-velocity version",
+            "type": "version",
+            "hidden": true,
+            "options": [
+              "3.1.0"
+            ],
+            "source": {
+              "url": "https://plugins.gradle.org/m2/xyz/jpenilla/run-velocity/xyz.jpenilla.run-velocity.gradle.plugin/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^\\d+\\.\\d+\\.\\d+$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "pluginId",
+            "label": "Plugin id",
+            "type": "string",
+            "default": "${name|id}",
+            "pattern": "^[a-z][a-z0-9_\\-]{0,63}$",
+            "patternMessage": "Lowercase letters, digits, - and _; starts with a letter"
+          },
+          {
+            "id": "group",
+            "label": "Group / package base",
+            "type": "string",
+            "default": "com.example",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "patternMessage": "Lowercase package name, e.g. com.example"
+          },
+          {
+            "id": "version",
+            "label": "Version",
+            "type": "string",
+            "default": "1.0.0"
+          },
+          {
+            "id": "author",
+            "label": "Author",
+            "type": "string",
+            "default": "${env:USERNAME}"
+          }
+        ],
+        "files": {
+          "settings.gradle.kts": [
+            "rootProject.name = \"${name}\""
+          ],
+          "build.gradle.kts": [
+            "plugins {",
+            "\tjava",
+            "\tid(\"xyz.jpenilla.run-velocity\") version \"${param.runVelocity}\"",
+            "}",
+            "",
+            "group = \"${param.group}\"",
+            "version = \"${param.version}\"",
+            "",
+            "repositories {",
+            "\tmavenCentral()",
+            "\tmaven(\"https://repo.papermc.io/repository/maven-public/\")",
+            "}",
+            "",
+            "dependencies {",
+            "\tcompileOnly(\"com.velocitypowered:velocity-api:${param.velocity}\")",
+            "\tannotationProcessor(\"com.velocitypowered:velocity-api:${param.velocity}\")",
+            "}",
+            "",
+            "java {",
+            "\ttoolchain.languageVersion = JavaLanguageVersion.of(21)",
+            "}",
+            "",
+            "tasks.runVelocity {",
+            "\tvelocityVersion(\"${param.velocity}-SNAPSHOT\")",
+            "}"
+          ],
+          "src/main/java/${param.group|path}/${param.pluginId|id}/${name|pascal}.java": [
+            "package ${param.group}.${param.pluginId|id};",
+            "",
+            "import com.google.inject.Inject;",
+            "import com.velocitypowered.api.event.Subscribe;",
+            "import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;",
+            "import com.velocitypowered.api.plugin.Plugin;",
+            "import com.velocitypowered.api.proxy.ProxyServer;",
+            "import org.slf4j.Logger;",
+            "",
+            "@Plugin(id = \"${param.pluginId}\", name = \"${name}\", version = \"${param.version}\", authors = {\"${param.author}\"})",
+            "public final class ${name|pascal} {",
+            "",
+            "\tprivate final ProxyServer server;",
+            "\tprivate final Logger logger;",
+            "",
+            "\t@Inject",
+            "\tpublic ${name|pascal}(ProxyServer server, Logger logger) {",
+            "\t\tthis.server = server;",
+            "\t\tthis.logger = logger;",
+            "\t}",
+            "",
+            "\t@Subscribe",
+            "\tpublic void onProxyInitialization(ProxyInitializeEvent event) {",
+            "\t\tlogger.info(\"${name} enabled\");",
+            "\t}",
+            "}"
+          ],
+          ".gitignore": [
+            ".gradle/",
+            "build/",
+            "run/",
+            ".aether/workspace.json"
+          ]
+        },
+        "commands": [
+          "gradle wrapper"
+        ],
+        "open": "src/main/java/${param.group|path}/${param.pluginId|id}/${name|pascal}.java"
       },
       {
         "id": "mc-fabric",
         "name": "Minecraft: Fabric Mod",
-        "description": "Clones the official Fabric example mod (needs git). Run \"Fabric: genSources\" once for Minecraft sources.",
         "icon": "FA",
         "iconColor": "#B8A77A",
         "category": "Minecraft",
-        "command": "git clone --depth 1 https://github.com/FabricMC/fabric-example-mod \"${name}\" && cd \"${name}\" && git remote remove origin"
+        "description": "Starts from the official Fabric example mod for the chosen Minecraft version (needs git), then sets the loader and Fabric API versions. Run \"Fabric: genSources\" once for Minecraft sources.",
+        "parameters": [
+          {
+            "id": "mc",
+            "label": "Minecraft version",
+            "type": "version",
+            "source": {
+              "url": "https://github.com/FabricMC/fabric-example-mod",
+              "format": "gitBranches",
+              "regex": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+              "sort": "desc"
+            },
+            "description": "Every Minecraft version the Fabric example mod has a branch for."
+          },
+          {
+            "id": "loader",
+            "label": "Fabric Loader",
+            "type": "version",
+            "source": {
+              "url": "https://meta.fabricmc.net/v2/versions/loader",
+              "field": "version",
+              "where": {
+                "stable": true
+              }
+            }
+          },
+          {
+            "id": "fabricApi",
+            "label": "Fabric API",
+            "type": "version",
+            "source": {
+              "url": "https://api.modrinth.com/v2/project/P7dR8mSH/version?game_versions=%5B%22${param.mc}%22%5D&loaders=%5B%22fabric%22%5D",
+              "field": "version_number"
+            }
+          },
+          {
+            "id": "group",
+            "label": "Group / package base",
+            "type": "string",
+            "default": "com.example",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "patternMessage": "Lowercase package name, e.g. com.example"
+          },
+          {
+            "id": "version",
+            "label": "Version",
+            "type": "string",
+            "default": "1.0.0"
+          }
+        ],
+        "command": "git clone --depth 1 --branch ${param.mc} https://github.com/FabricMC/fabric-example-mod \"${name}\" && cd \"${name}\" && git remote remove origin",
+        "properties": {
+          "gradle.properties": {
+            "loader_version": "${param.loader}",
+            "fabric_api_version": "${param.fabricApi}",
+            "fabric_version": "${param.fabricApi}",
+            "group": "${param.group}",
+            "maven_group": "${param.group}",
+            "version": "${param.version}",
+            "mod_version": "${param.version}",
+            "archives_base_name": "${name|id}"
+          }
+        },
+        "open": "src/main/resources/fabric.mod.json"
       },
       {
         "id": "mc-neoforge",
         "name": "Minecraft: NeoForge Mod",
-        "description": "Clones the official NeoForge 1.21.1 ModDevGradle MDK (needs git).",
         "icon": "NF",
         "iconColor": "#D7742F",
         "category": "Minecraft",
-        "command": "git clone --depth 1 https://github.com/NeoForgeMDKs/MDK-1.21.1-ModDevGradle \"${name}\" && cd \"${name}\" && git remote remove origin"
+        "description": "Starts from the official NeoForge ModDevGradle MDK for the chosen Minecraft version (needs git), then sets the NeoForge version and mod details.",
+        "parameters": [
+          {
+            "id": "mc",
+            "label": "Minecraft version",
+            "type": "version",
+            "source": {
+              "url": "https://api.github.com/orgs/NeoForgeMDKs/repos?per_page=100",
+              "field": "name",
+              "regex": "^MDK-(?<v>\\d+\\.\\d+(?:\\.\\d+)?)-ModDevGradle$",
+              "sort": "desc"
+            },
+            "description": "Every Minecraft version NeoForge publishes an MDK for."
+          },
+          {
+            "id": "neo",
+            "label": "NeoForge version",
+            "type": "version",
+            "source": {
+              "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^${param.mc|neoforge}\\.\\d+(?:-beta)?$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "modName",
+            "label": "Mod name",
+            "type": "string",
+            "default": "${name}"
+          },
+          {
+            "id": "group",
+            "label": "Group / package base",
+            "type": "string",
+            "default": "com.example",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "patternMessage": "Lowercase package name, e.g. com.example"
+          },
+          {
+            "id": "version",
+            "label": "Version",
+            "type": "string",
+            "default": "1.0.0"
+          },
+          {
+            "id": "author",
+            "label": "Author",
+            "type": "string",
+            "default": "${env:USERNAME}"
+          }
+        ],
+        "command": "git clone --depth 1 https://github.com/NeoForgeMDKs/MDK-${param.mc}-ModDevGradle \"${name}\" && cd \"${name}\" && git remote remove origin",
+        "properties": {
+          "gradle.properties": {
+            "neo_version": "${param.neo}",
+            "mod_name": "${param.modName}",
+            "mod_version": "${param.version}",
+            "mod_group_id": "${param.group}",
+            "mod_authors": "${param.author}"
+          }
+        },
+        "open": "gradle.properties"
+      },
+      {
+        "id": "mc-forge",
+        "name": "Minecraft: Forge Mod",
+        "icon": "FO",
+        "iconColor": "#5B6B7F",
+        "category": "Minecraft",
+        "description": "Downloads the official Forge MDK for the chosen versions and sets the mod details.",
+        "parameters": [
+          {
+            "id": "mc",
+            "label": "Minecraft version",
+            "type": "version",
+            "source": {
+              "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^(?<v>\\d+\\.\\d+(?:\\.\\d+)?)-",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "forge",
+            "label": "Forge version",
+            "type": "version",
+            "source": {
+              "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml",
+              "format": "xml",
+              "regex": "^${param.mc}-[\\d.]+$",
+              "sort": "desc"
+            }
+          },
+          {
+            "id": "modName",
+            "label": "Mod name",
+            "type": "string",
+            "default": "${name}"
+          },
+          {
+            "id": "group",
+            "label": "Group / package base",
+            "type": "string",
+            "default": "com.example",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "patternMessage": "Lowercase package name, e.g. com.example"
+          },
+          {
+            "id": "version",
+            "label": "Version",
+            "type": "string",
+            "default": "1.0.0"
+          },
+          {
+            "id": "author",
+            "label": "Author",
+            "type": "string",
+            "default": "${env:USERNAME}"
+          }
+        ],
+        "command": "mkdir \"${name}\" && curl -fsSL -o \"${name}/forge-mdk.zip\" https://maven.minecraftforge.net/net/minecraftforge/forge/${param.forge}/forge-${param.forge}-mdk.zip && tar -xf \"${name}/forge-mdk.zip\" -C \"${name}\"",
+        "delete": [
+          "forge-mdk.zip"
+        ],
+        "properties": {
+          "gradle.properties": {
+            "mod_name": "${param.modName}",
+            "mod_version": "${param.version}",
+            "mod_group_id": "${param.group}",
+            "mod_authors": "${param.author}"
+          }
+        },
+        "open": "gradle.properties"
       }
     ],
     "runConfigurations": [
@@ -138,10 +571,55 @@
         "kind": "build"
       },
       {
+        "name": "Forge: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/resources/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/resources/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/templates/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/templates/META-INF/mods.toml"
+      },
+      {
+        "name": "Paper: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/resources/plugin.yml"
+      },
+      {
         "name": "Paper: build plugin jar",
-        "command": "gradle build",
+        "command": "gradlew build",
         "when": "src/main/resources/plugin.yml",
         "kind": "build"
+      },
+      {
+        "name": "Forge: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/resources/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/resources/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runClient",
+        "command": "gradlew runClient",
+        "when": "src/main/templates/META-INF/mods.toml"
+      },
+      {
+        "name": "Forge: runServer",
+        "command": "gradlew runServer",
+        "when": "src/main/templates/META-INF/mods.toml"
       }
     ],
     "fileTemplates": [

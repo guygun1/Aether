@@ -211,6 +211,16 @@ public sealed class ProjectTemplate
     public string? Command { get; set; }
     /// <summary>Files written into the new project folder (path → contents).</summary>
     public Dictionary<string, JsonNode?> Files { get; set; } = new();
+    /// <summary>Questions shown in New Project (versions, ids …), used as <c>${param.id}</c>.</summary>
+    public List<TemplateParameter> Parameters { get; set; } = new();
+    /// <summary>Keys set in .properties files after the command ran, e.g. { "gradle.properties": { "mod_version": "1.0.0" } }.</summary>
+    public Dictionary<string, Dictionary<string, string>> Properties { get; set; } = new();
+    /// <summary>Commands run in the new project folder after the files are written; failures are reported, not fatal.</summary>
+    public List<string> Commands { get; set; } = new();
+    /// <summary>File opened after creation (relative to the project).</summary>
+    public string? Open { get; set; }
+    /// <summary>Files or folders removed after creation (relative to the project), e.g. a downloaded archive.</summary>
+    public List<string> Delete { get; set; } = new();
 }
 
 /// <summary>An opt-in addition to a project template, e.g. "Graphics: GLFW" for the C++ template.</summary>

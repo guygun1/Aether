@@ -21,7 +21,103 @@ public static class IntelliJConverter
         public string Name { get; set; } = "";
         public string? OutputDir { get; set; }
         public List<string> Converted { get; } = new();
-        public List<string> Skipped { get; } = new();
+        /// <summary>A bundled Aether plugin that natively replaces this IntelliJ plugin (enable it).</summary>
+        public NativeReplacement? Native { get; set; }
+        /// <summary>What the plugin's code-based extensions map to in Aether, grouped.</summary>
+        public List<Section> Sections { get; } = new();
+        public List<string> Notes { get; } = new();
+    }
+
+    /// <summary>A group of IntelliJ extension points. Status: "native", "covered", "notNeeded" or "missing".</summary>
+    public sealed record Section(string Title, string Explanation, string Status, List<string> Items);
+
+    public sealed record NativeReplacement(string PluginId, string Name, string Covers);
+
+    /// <summary>IntelliJ plugins whose features Aether provides natively (bundled plugin id) or through a catalog language.</summary>
+    private static readonly (string IntelliJId, string? Bundled, string? Catalog, string Name, string Covers)[] KnownPlugins =
+    {
+        ("com.demonwav.minecraft-dev", "aether.minecraft", null, "Minecraft Modding",
+            "New Project wizards for Paper, Velocity, Fabric, NeoForge and Forge with live Minecraft/loader version pickers, Gradle run tasks (runClient, runServer, genSources …), Mixin / listener / command templates."),
+        ("org.rust.lang", "rust", null, "Rust", "rust-analyzer, Cargo run configurations and dependencies, project templates."),
+        ("com.jetbrains.rust", "rust", null, "Rust", "rust-analyzer, Cargo run configurations and dependencies, project templates."),
+        ("com.intellij.java", "aether.java", null, "Java", "Eclipse JDT language server, Gradle/Maven run configurations and dependencies, templates."),
+        ("com.intellij.cidr.lang", "cpp", null, "C / C++", "clangd, CMake integration, templates."),
+        ("com.intellij.clion", "cpp", null, "C / C++", "clangd, CMake integration, templates."),
+        ("org.jetbrains.plugins.cmake", "cmake", null, "CMake", "CMake language server and run configurations."),
+        ("com.intellij.modules.rider", "csharp", null, "C# / .NET", "csharp-ls, dotnet run configurations, NuGet."),
+        ("com.jetbrains.plugins.glsl", "graphics", null, "Graphics & Shaders", "GLSL/WGSL highlighting and glsl_analyzer."),
+        ("org.jetbrains.kotlin", null, "kotlin", "Kotlin", "Kotlin language server."),
+        ("PythonCore", null, "python", "Python", "Pyright."),
+        ("Pythonid", null, "python", "Python", "Pyright."),
+        ("org.jetbrains.plugins.go", null, "go", "Go", "gopls."),
+        ("Dart", null, "dart", "Dart", "Dart analysis server."),
+        ("org.jetbrains.plugins.ruby", null, "ruby", "Ruby", "Ruby LSP."),
+        ("com.jetbrains.php", null, "php", "PHP", "Intelephense."),
+        ("com.jetbrains.sh", null, "shellscript", "Shell", "Bash language server."),
+        ("org.jetbrains.plugins.yaml", null, "yaml", "YAML", "YAML language server."),
+        ("org.intellij.plugins.markdown", null, "markdown", "Markdown", "Marksman."),
+        ("com.tang", null, "lua", "Lua", "LuaLS."),
+        ("com.falsepattern.zigbrains", null, "zig", "Zig", "ZLS."),
+        ("JavaScript", null, "javascript", "JavaScript", "TypeScript language server."),
+    };
+
+    // ---- What IntelliJ extension points become in Aether ----------------------------------
+
+    private static readonly (string Status, string Title, string Explanation, string[] Patterns)[] Categories =
+    {
+        ("partial", "Language features (completion, inspections, navigation …)",
+            "In Aether these come from the language's server (LSP), so the language's general features work (e.g. Java's server for Java files). This plugin's own extra completions, inspections and navigation are its code and aren't available.",
+            ["completion", "annotator", "inspection", "Inspection", "gotoDeclarationHandler", "referencesSearch", "findUsages", "rename", "refactoring",
+             "parameterNameHints", "parameterInfo", "documentationProvider", "structureView", "StructureView", "gotoSymbolContributor", "gotoClassContributor",
+             "referenceContributor", "referenceProvider", "intentionAction", "QuickFix", "quickFix", "importOptimizer", "superMethodsSearch", "implicitUsageProvider",
+             "lang.formatter", "formattingService", "inlay", "Inlay", "typeInfo", "codeVision", "CodeVision", "lineMarkerProvider", "highlightUsages",
+             "highlightingPass", "namesValidator", "definitionsSearch", "methodReferencesSearch", "targetElementEvaluator", "elementDescriptionProvider",
+             "unscrambleSupport", "missingLVTChecker", "injectionPoint", "codeInsight", "daemon", "localInspection", "globalInspection", "lang.unwrapDescriptor",
+             "readWriteAccessDetector", "usageTypeProvider", "lang.smartEnterProcessor", "statementUpDownMover", "lang.surroundDescriptor"]),
+        ("missing", "Custom editors and banners",
+            "Special editors (e.g. a binary file viewer) and editor banners are plugin code.",
+            ["fileEditorProvider", "editorNotificationProvider", "fileTypeOverrider"]),
+        ("covered", "Built into the Aether editor",
+            "Brace matching, commenting, folding, quote pairing, colour schemes, file icons and file templates are editor features configured by plugin data.",
+            ["braceMatcher", "commenter", "foldingBuilder", "codeFoldingOptionsProvider", "quoteHandler", "typedHandler", "enterHandlerDelegate",
+             "backspaceHandlerDelegate", "colorSettingsPage", "additionalTextAttributes", "spellchecker",
+             "fileIconProvider", "iconProvider", "iconLayerProvider", "fileTypeDetector", "fileType", "defaultLiveTemplates", "liveTemplateContext",
+             "liveTemplateMacro", "fileTemplateGroup", "internalFileTemplate", "lang.fileViewProviderFactory",
+             "elementManipulator", "multiHostInjector", "languageInjector", "lang.ast.factory", "stubElementTypeHolder", "lang.psiStructureViewFactory"]),
+        ("highlighting", "Syntax highlighting",
+            "Aether highlights with TextMate grammars. IntelliJ lexers/parsers are code, so a language from this plugin without a bundled grammar opens as plain text.",
+            ["syntaxHighlighter", "parserDefinition"]),
+        ("covered", "Run configurations",
+            "Aether plugins declare run configurations as commands (e.g. \"gradlew runClient\") that appear when the project matches.",
+            ["runConfigurationProducer", "configurationType", "programRunner", "runConfigurationExtension", "executor", "runLineMarkerContributor",
+             "consoleFilterProvider", "stacktrace"]),
+        ("notNeeded", "IntelliJ infrastructure (not needed in Aether)",
+            "Services, startup activities, indexes, settings pages, notifications and project-model hooks belong to IntelliJ's architecture; Aether doesn't need them.",
+            ["Service", "service", "Activity", "activity", "notificationGroup", "errorHandler", "registryKey", "Configurable", "configurable", "statistics",
+             "iconMapper", "dependencySupport", "facetType", "moduleType", "projectResolve", "externalProjectDataService", "ExternalSystem", "externalSystem",
+             "fileBasedIndex", "stubIndex", "weigher", "ScopeEnlarger", "Listener", "listener", "themeMetadataProvider", "library.presentationProvider",
+             "attachSourcesProvider", "importFilter", "externalAnnotationsArtifactsResolver", "java.externalAnnotation", "projectViewNodeDecorator", "treeStructureProvider",
+             "applicationInitializedListener", "postStartupActivity", "backgroundPostStartupActivity", "titleInfoProvider", "search.optionContributor",
+             "localInspection.suppressor", "inspectionSuppressor", "lang.inspectionSuppressor", "deadCode", "cantBeStatic", "vetoRenameCondition"]),
+        ("native", "Project wizards",
+            "IntelliJ wizard steps are code. Aether templates ask the same questions through template parameters (versions loaded live, ids, groups).",
+            ["Wizard", "wizard", "moduleBuilder", "creator", "Creator", "projectSetupFinalizer", "buildSystem", "projectTemplate", "directoryProjectGenerator",
+             "gradleFileType", "newProjectWizard"]),
+        ("missing", "Debugger extensions", "Aether has no debugger yet (planned: Debug Adapter Protocol).", ["debugger", "xdebugger"]),
+    };
+
+    private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "nbt", "dat", "mca", "mcr", "schematic", "schem", "litematic", "class", "jar", "png", "jpg", "gif", "ico", "zip", "bin", "exe", "dll", "so", "dylib",
+    };
+
+    private static (string Status, string Title, string Explanation) Classify(string extensionPoint)
+    {
+        foreach (var c in Categories)
+            if (c.Patterns.Any(p => extensionPoint.Contains(p, StringComparison.Ordinal)))
+                return (c.Status, c.Title, c.Explanation);
+        return ("missing", "Plugin-specific features without an Aether equivalent",
+            "These are implemented in the plugin's Java/Kotlin code against IntelliJ APIs and can't run outside IntelliJ.");
     }
 
     /// <summary>Reads every file of the plugin (jars inside a distribution zip are opened too).</summary>
@@ -92,6 +188,12 @@ public static class IntelliJConverter
             var exts = ((string?)ft.Attribute("extensions") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries);
             var names = ((string?)ft.Attribute("fileNames") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries);
             if (name is null || exts.Length + names.Length == 0) continue;
+            // Binary formats (NBT, region files …) would show as garbage in a text editor.
+            if (exts.Any(e => BinaryExtensions.Contains(e.TrimStart('.'))))
+            {
+                report.Notes.Add($"File type {name} ({string.Join(", ", exts.Select(e => "." + e))}) is binary; Aether doesn't open it as text.");
+                continue;
+            }
             Arr("languages").Add(new JsonObject
             {
                 ["id"] = ((string?)ft.Attribute("language") ?? name).ToLowerInvariant(),
@@ -104,18 +206,23 @@ public static class IntelliJConverter
             report.Converted.Add($"File type: {name} ({string.Join(", ", exts.Select(e => "." + e))})");
         }
 
-        // Bundled TextMate grammars (JSON form).
-        foreach (var (path, bytes) in files.Where(f => f.Key.EndsWith(".tmLanguage.json", StringComparison.OrdinalIgnoreCase)))
+        // TextMate bundles in VS Code extension form (package.json with contributes.languages/grammars/snippets).
+        var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (path, bytes) in files.Where(f => f.Key.EndsWith("package.json", StringComparison.OrdinalIgnoreCase)).ToList())
+            ConvertVsCodeBundle(path, bytes, files, dir, Arr, report, handled);
+
+        // Loose TextMate grammars: JSON, or plist (.tmLanguage / .plist) converted to JSON.
+        foreach (var (path, bytes) in files.Where(f => !handled.Contains(f.Key) && IsGrammarFile(f.Key)))
         {
             try
             {
-                var grammar = JsonNode.Parse(bytes);
+                var grammar = ReadGrammar(path, bytes);
                 var scope = grammar?["scopeName"]?.GetValue<string>();
-                if (scope is null) continue;
-                var fileName = Path.GetFileName(path);
-                File.WriteAllBytes(Path.Combine(dir, fileName), bytes);
-                var exts = (grammar?["fileTypes"] as JsonArray)?.Select(e => (JsonNode)("." + e!.GetValue<string>().TrimStart('.'))).ToArray() ?? [];
-                var langName = grammar?["name"]?.GetValue<string>() ?? scope;
+                if (grammar is null || scope is null) continue;
+                var fileName = GrammarFileName(path);
+                File.WriteAllText(Path.Combine(dir, fileName), grammar.ToJsonString());
+                var exts = (grammar["fileTypes"] as JsonArray)?.Select(e => (JsonNode)("." + e!.GetValue<string>().TrimStart('.'))).ToArray() ?? [];
+                var langName = grammar["name"]?.GetValue<string>() ?? scope;
                 var existing = Arr("languages").OfType<JsonObject>().FirstOrDefault(l => (l["extensions"] as JsonArray)?.Any(e => exts.Any(x => x!.GetValue<string>() == e!.GetValue<string>())) == true);
                 if (existing is not null) existing["grammar"] = fileName;
                 else Arr("languages").Add(new JsonObject { ["id"] = scope.Split('.').Last(), ["name"] = langName, ["extensions"] = new JsonArray(exts), ["grammar"] = fileName });
@@ -123,11 +230,9 @@ public static class IntelliJConverter
             }
             catch
             {
-                report.Skipped.Add($"Unreadable grammar: {path}");
+                report.Notes.Add($"Unreadable grammar: {path}");
             }
         }
-        foreach (var p in files.Keys.Where(k => k.EndsWith(".tmLanguage", StringComparison.OrdinalIgnoreCase) || k.EndsWith(".plist", StringComparison.OrdinalIgnoreCase)))
-            report.Skipped.Add($"TextMate grammar in plist format (convert to .tmLanguage.json to use): {p}");
 
         // Live templates → snippets.
         foreach (var (path, bytes) in files.Where(f => f.Key.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)))
@@ -150,7 +255,7 @@ public static class IntelliJConverter
                 var (bindings, unmapped) = ConvertKeymap(doc.Root);
                 foreach (var b in bindings) Arr("keybindings").Add(b);
                 report.Converted.Add($"Keymap \"{doc.Root.Attribute("name")?.Value}\": {bindings.Count} shortcuts");
-                if (unmapped > 0) report.Skipped.Add($"{unmapped} keymap actions have no Aether equivalent");
+                if (unmapped > 0) report.Notes.Add($"{unmapped} keymap actions have no Aether equivalent");
             }
             else if (doc.Root?.Name.LocalName == "scheme")
             {
@@ -174,12 +279,17 @@ public static class IntelliJConverter
             }
             catch
             {
-                report.Skipped.Add($"Unreadable color scheme: {path}");
+                report.Notes.Add($"Unreadable color scheme: {path}");
             }
         }
 
-        // File templates (Velocity) → file templates.
-        foreach (var (path, bytes) in files.Where(f => f.Key.Contains("fileTemplates/", StringComparison.OrdinalIgnoreCase) && f.Key.EndsWith(".ft", StringComparison.OrdinalIgnoreCase)))
+        // File templates (Velocity) → file templates. Only the ones IntelliJ shows under New (fileTemplates/ and
+        // fileTemplates/internal/); j2ee/, code/ and includes/ are used by the plugin's own code (wizards, intentions).
+        var allFileTemplates = files.Keys.Where(k => k.Contains("fileTemplates/", StringComparison.OrdinalIgnoreCase) && k.EndsWith(".ft", StringComparison.OrdinalIgnoreCase)).ToList();
+        var newFileTemplates = allFileTemplates.Where(k => Regex.IsMatch(k, @"(^|/)fileTemplates/(internal/)?[^/]+$", RegexOptions.IgnoreCase)).ToHashSet();
+        if (allFileTemplates.Count > newFileTemplates.Count)
+            report.Notes.Add($"{allFileTemplates.Count - newFileTemplates.Count} file templates are used by the plugin's code (wizards, intentions), not under New; not converted.");
+        foreach (var (path, bytes) in files.Where(f => newFileTemplates.Contains(f.Key)))
         {
             var file = Path.GetFileName(path)[..^3]; // "Java Class.java"
             var ext = Path.GetExtension(file);
@@ -190,16 +300,62 @@ public static class IntelliJConverter
             report.Converted.Add($"File template: {Path.GetFileNameWithoutExtension(file)}");
         }
 
-        // Everything implemented in code: report what the plugin relied on.
-        var codeExtensions = root.Descendants()
-            .Where(e => e.Parent?.Name.LocalName == "extensions" && e.Name.LocalName is not ("fileType" or "defaultLiveTemplates" or "bundledColorScheme" or "bundledKeymap" or "internalFileTemplate" or "liveTemplateContext"))
+        // Known plugins: Aether has a native equivalent (a bundled plugin, or a catalog language with its server).
+        var known = KnownPlugins.FirstOrDefault(k => string.Equals(k.IntelliJId, ijId, StringComparison.OrdinalIgnoreCase));
+        if (known.IntelliJId is not null)
+        {
+            if (known.Bundled is not null) report.Native = new NativeReplacement(known.Bundled, known.Name, known.Covers);
+            else if (known.Catalog is not null && LanguageCatalog.All.FirstOrDefault(l => l.Id == known.Catalog) is { } cat)
+            {
+                LanguageCatalog.CreatePlugin(cat);
+                report.Native = new NativeReplacement($"lang-{cat.Id}", $"{cat.Name} Language Support", known.Covers);
+            }
+        }
+
+        // Converted languages get the standard language server for their file extensions, when Aether knows one.
+        foreach (var lang in Arr("languages").OfType<JsonObject>().ToList())
+        {
+            var exts = (lang["extensions"] as JsonArray)?.Select(e => e?.GetValue<string>()).OfType<string>().ToList() ?? new();
+            if (LanguageCatalog.All.FirstOrDefault(c => c.Command is not null && c.Extensions.Intersect(exts, StringComparer.OrdinalIgnoreCase).Any()) is not { } cat) continue;
+            var langId = lang["id"]!.GetValue<string>();
+            if (cat.LineComment is not null) lang["lineComment"] ??= cat.LineComment;
+            var server = new JsonObject
+            {
+                ["id"] = $"{id}-{cat.Id}-ls",
+                ["name"] = cat.ServerName ?? cat.Command,
+                ["command"] = cat.Command,
+                ["args"] = new JsonArray(cat.Args.Select(a => (JsonNode)a).ToArray()),
+                ["languages"] = new JsonArray((JsonNode)langId),
+            };
+            if (cat.Install is not null) server["install"] = cat.Install;
+            if (cat.InstallUrl is not null) server["installUrl"] = cat.InstallUrl;
+            Arr("lspServers").Add(server);
+            report.Converted.Add($"Language server: {cat.ServerName} for {lang["name"]} (provides completion, navigation, inspections …)");
+        }
+
+        // Everything implemented in code: what each extension point becomes in Aether.
+        var extensionPoints = root.Descendants()
+            .Where(e => e.Parent?.Name.LocalName == "extensions" && e.Name.LocalName is not ("fileType" or "defaultLiveTemplates" or "bundledColorScheme" or "bundledKeymap"))
             .GroupBy(e => e.Name.LocalName)
-            .Select(g => $"{g.Key} ×{g.Count()}")
-            .ToList();
-        if (codeExtensions.Count > 0)
-            report.Skipped.Add("Code-based IntelliJ extensions (need the JVM/IntelliJ APIs, not convertible): " + string.Join(", ", codeExtensions));
+            .Select(g => (Name: g.Key, Count: g.Count()));
+        var withoutGrammar = Arr("languages").OfType<JsonObject>().Where(l => l["grammar"] is null && l["scopeName"] is null).Select(l => l["name"]?.GetValue<string>()).ToList();
+        foreach (var group in extensionPoints.GroupBy(ep => Classify(ep.Name)).OrderBy(g => g.Key.Status switch { "native" => 0, "covered" => 1, "highlighting" => 2, "partial" => 3, "notNeeded" => 4, _ => 5 }))
+        {
+            var (status, title, explanation) = group.Key;
+            // With a native replacement, wizards are covered by its templates.
+            if (status == "native" && report.Native is null) status = "missing";
+            if (status == "highlighting")
+            {
+                status = withoutGrammar.Count == 0 ? "covered" : "partial";
+                if (withoutGrammar.Count > 0) explanation += $" Without a grammar: {string.Join(", ", withoutGrammar)}.";
+            }
+            report.Sections.Add(new Section(title, explanation, status, group.Select(ep => ep.Count > 1 ? $"{ep.Name} ×{ep.Count}" : ep.Name).ToList()));
+        }
         var actions = root.Descendants().Count(e => e.Name.LocalName == "action");
-        if (actions > 0) report.Skipped.Add($"{actions} IntelliJ actions implemented in code");
+        if (actions > 0)
+            report.Sections.Add(new Section("Menu actions",
+                "IntelliJ actions are code. Aether plugins add actions as commands (a command line with an optional shortcut); you can add your own in Settings → Keymap → My Commands.",
+                report.Native is null ? "missing" : "partial", [$"{actions} actions"]));
 
         var manifest = new JsonObject
         {
@@ -211,8 +367,145 @@ public static class IntelliJConverter
             ["contributes"] = contributes,
         };
         File.WriteAllText(Path.Combine(dir, "plugin.json"), manifest.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-        if (report.Converted.Count == 0) report.Skipped.Insert(0, "Nothing declarative to convert: this plugin is implemented entirely in code.");
+        if (report.Converted.Count == 0 && report.Native is null)
+            report.Notes.Insert(0, "Nothing declarative to convert: this plugin is implemented entirely in code.");
         return report;
+    }
+
+    // ---- TextMate bundles ------------------------------------------------------------
+
+    private static bool IsGrammarFile(string path) =>
+        path.EndsWith(".tmLanguage.json", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".tmLanguage", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".plist", StringComparison.OrdinalIgnoreCase);
+
+    private static string GrammarFileName(string path)
+    {
+        var name = Path.GetFileName(path);
+        foreach (var ext in new[] { ".tmLanguage.json", ".tmLanguage", ".plist", ".json" })
+            if (name.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return name[..^ext.Length] + ".tmLanguage.json";
+        return name + ".tmLanguage.json";
+    }
+
+    /// <summary>Reads a TextMate grammar in JSON or plist (XML) form as JSON.</summary>
+    private static JsonObject? ReadGrammar(string path, byte[] bytes)
+    {
+        var text = Encoding.UTF8.GetString(bytes).TrimStart('﻿');
+        if (text.TrimStart().StartsWith('{')) return JsonNode.Parse(text, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject;
+        var plist = XDocument.Parse(text, LoadOptions.None).Root;
+        return plist?.Elements().FirstOrDefault() is { } top ? PlistToJson(top) as JsonObject : null;
+    }
+
+    private static JsonNode? PlistToJson(XElement e) => e.Name.LocalName switch
+    {
+        "dict" => PlistDict(e),
+        "array" => new JsonArray(e.Elements().Select(PlistToJson).ToArray()),
+        "string" => JsonValue.Create(e.Value),
+        "integer" => long.TryParse(e.Value, out var l) ? JsonValue.Create(l) : JsonValue.Create(e.Value),
+        "real" => double.TryParse(e.Value, System.Globalization.CultureInfo.InvariantCulture, out var d) ? JsonValue.Create(d) : JsonValue.Create(e.Value),
+        "true" => JsonValue.Create(true),
+        "false" => JsonValue.Create(false),
+        _ => JsonValue.Create(e.Value),
+    };
+
+    private static JsonObject PlistDict(XElement dict)
+    {
+        var obj = new JsonObject();
+        var items = dict.Elements().ToList();
+        for (var i = 0; i + 1 < items.Count; i += 2)
+            if (items[i].Name.LocalName == "key") obj[items[i].Value] = PlistToJson(items[i + 1]);
+        return obj;
+    }
+
+    /// <summary>Converts a VS Code-style TextMate bundle (many IntelliJ plugins ship one for highlighting).</summary>
+    private static void ConvertVsCodeBundle(string packagePath, byte[] bytes, Dictionary<string, byte[]> files, string dir,
+        Func<string, JsonArray> arr, Report report, HashSet<string> handled)
+    {
+        JsonNode? package;
+        try { package = JsonNode.Parse(bytes, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }); }
+        catch { return; }
+        if (package?["contributes"] is not JsonObject contributes) return;
+        var baseDir = packagePath.Contains('/') ? packagePath[..(packagePath.LastIndexOf('/') + 1)] : "";
+        string Resolve(string relative) => baseDir + relative.Replace('\\', '/').TrimStart('.', '/');
+        byte[]? Read(string relative) => files.GetValueOrDefault(Resolve(relative));
+        static string Str(JsonNode? n) => n is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
+        var jsonOptions = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+
+        // Grammars by language id.
+        var grammars = new Dictionary<string, string>();
+        foreach (var g in contributes["grammars"] as JsonArray ?? new JsonArray())
+        {
+            var relative = Str(g?["path"]);
+            if (relative.Length == 0 || Read(relative) is not { } grammarBytes) continue;
+            try
+            {
+                var grammar = ReadGrammar(relative, grammarBytes);
+                if (grammar is null) continue;
+                var fileName = GrammarFileName(relative);
+                File.WriteAllText(Path.Combine(dir, fileName), grammar.ToJsonString());
+                handled.Add(Resolve(relative));
+                if (Str(g?["language"]) is { Length: > 0 } lang) grammars[lang] = fileName;
+            }
+            catch { report.Notes.Add($"Unreadable grammar: {relative}"); }
+        }
+
+        foreach (var l in contributes["languages"] as JsonArray ?? new JsonArray())
+        {
+            var langId = Str(l?["id"]);
+            var exts = (l?["extensions"] as JsonArray)?.Select(Str).Where(s => s.Length > 0).ToList() ?? new();
+            var names = (l?["filenames"] as JsonArray)?.Select(Str).Where(s => s.Length > 0).ToList() ?? new();
+            if (langId.Length == 0 || exts.Count + names.Count == 0) continue;
+            var name = (l?["aliases"] as JsonArray)?.Select(Str).FirstOrDefault(s => s.Length > 0) ?? langId;
+            var language = new JsonObject
+            {
+                ["id"] = langId,
+                ["name"] = name,
+                ["extensions"] = new JsonArray(exts.Select(e => (JsonNode)e).ToArray()),
+                ["filenames"] = new JsonArray(names.Select(e => (JsonNode)e).ToArray()),
+                ["icon"] = name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant(),
+                ["iconColor"] = "#6F8AA8",
+            };
+            if (grammars.TryGetValue(langId, out var grammarFile)) language["grammar"] = grammarFile;
+            if (Str(l?["configuration"]) is { Length: > 0 } configPath && Read(configPath) is { } configBytes)
+            {
+                try
+                {
+                    var config = JsonNode.Parse(configBytes, documentOptions: jsonOptions);
+                    if (Str(config?["comments"]?["lineComment"]) is { Length: > 0 } lc) language["lineComment"] = lc;
+                    if (config?["comments"]?["blockComment"] is JsonArray bc && bc.Count == 2)
+                        language["blockComment"] = new JsonArray(JsonValue.Create(Str(bc[0])), JsonValue.Create(Str(bc[1])));
+                }
+                catch { /* comments are optional */ }
+            }
+            // A file type from plugin.xml with the same extensions is replaced by the richer bundle language.
+            foreach (var old in arr("languages").OfType<JsonObject>().Where(o => (o["extensions"] as JsonArray)?.Any(e => exts.Contains(Str(e))) == true).ToList())
+                arr("languages").Remove(old);
+            arr("languages").Add(language);
+            report.Converted.Add($"Language: {name} ({string.Join(", ", exts)}){(language["grammar"] is null ? "" : " with grammar")}");
+        }
+
+        foreach (var s in contributes["snippets"] as JsonArray ?? new JsonArray())
+        {
+            if (Read(Str(s?["path"])) is not { } snippetBytes) continue;
+            try
+            {
+                if (JsonNode.Parse(snippetBytes, documentOptions: jsonOptions) is not JsonObject snippets) continue;
+                var language = Str(s?["language"]);
+                foreach (var (snippetName, body) in snippets)
+                {
+                    var prefixes = body?["prefix"] switch { JsonArray a => a.Select(Str).ToList(), var p => [Str(p)] };
+                    foreach (var prefix in prefixes.Where(p => p.Length > 0))
+                        arr("snippets").Add(new JsonObject
+                        {
+                            ["language"] = language.Length > 0 ? language : "*",
+                            ["prefix"] = prefix,
+                            ["body"] = body?["body"]?.DeepClone(),
+                            ["description"] = Str(body?["description"]) is { Length: > 0 } d ? d : snippetName,
+                        });
+                }
+                report.Converted.Add($"Snippets: {snippets.Count} for {language}");
+            }
+            catch { report.Notes.Add($"Unreadable snippets: {Str(s?["path"])}"); }
+        }
     }
 
     // ---- Live templates ------------------------------------------------------------

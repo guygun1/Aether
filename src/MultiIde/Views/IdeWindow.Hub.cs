@@ -270,6 +270,11 @@ public abstract partial class IdeWindow
             }),
         };
         var description = new TextBlock { TextWrapping = TextWrapping.Wrap, Classes = { "muted" } };
+        var paramsPanel = new StackPanel { Spacing = 8 };
+        var paramValues = new Dictionary<string, string>();
+        var paramProblems = new Dictionary<string, string>();
+        var refreshers = new Dictionary<string, Action>();
+        ProjectTemplate? paramsFor = null;
         var optionsPanel = new StackPanel { Spacing = 6 };
         var chosenOptions = new List<ProjectTemplateOption>();
         var name = new TextBox { Text = "untitled" };
@@ -280,10 +285,170 @@ public abstract partial class IdeWindow
         var create = new Button { Content = "Create", Classes = { "primary" } };
         var cancel = new Button { Content = "Cancel", Classes = { "secondary" } };
 
+        // ---- Template parameters (versions, ids …) --------------------------------------
+
+        bool DependsOn(TemplateParameter p, string id) =>
+            TemplateParameters.References(p.Default).Contains(id) ||
+            TemplateParameters.References(p.Source?.Url).Contains(id) ||
+            TemplateParameters.References(p.Source?.Regex).Contains(id);
+
+        void ParamChanged(string id)
+        {
+            foreach (var p in selected.Parameters)
+                if (p.Id != id && DependsOn(p, id) && refreshers.TryGetValue(p.Id, out var refresh)) refresh();
+        }
+
+        string DefaultOf(TemplateParameter p) => Macros.Expand(TemplateParameters.Expand(
+            PluginManager.Expand(p.Default ?? "", null, null, (name.Text ?? "").Trim()), paramValues, (name.Text ?? "").Trim()), new Macros.Context(null));
+
+        Control ParamInput(TemplateParameter p)
+        {
+            var updating = false;
+            switch (p.Type)
+            {
+                case "boolean":
+                {
+                    var box = new CheckBox { Content = p.Label };
+                    refreshers[p.Id] = () => { updating = true; box.IsChecked = DefaultOf(p) == "true"; updating = false; paramValues[p.Id] = box.IsChecked == true ? "true" : "false"; };
+                    box.IsCheckedChanged += (_, _) => { if (updating) return; paramValues[p.Id] = box.IsChecked == true ? "true" : "false"; ParamChanged(p.Id); };
+                    return box;
+                }
+                case "choice":
+                case "version":
+                {
+                    var combo = new ComboBox { MinWidth = 260, MaxDropDownHeight = 360 };
+                    var state = new TextBlock { FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, Classes = { "muted" } };
+                    var load = 0;
+                    void SetItems(List<string> items)
+                    {
+                        updating = true;
+                        combo.ItemsSource = items;
+                        var wanted = DefaultOf(p);
+                        combo.SelectedIndex = items.Count == 0 ? -1 : Math.Max(0, items.IndexOf(wanted));
+                        updating = false;
+                        if (combo.SelectedItem is string s) { paramValues[p.Id] = s; paramProblems.Remove(p.Id); }
+                        else { paramValues.Remove(p.Id); paramProblems[p.Id] = $"{p.Label}: no versions available"; }
+                        ParamChanged(p.Id);
+                    }
+                    refreshers[p.Id] = async () =>
+                    {
+                        if (p.Type == "choice" || p.Source is null) { SetItems(p.Options); return; }
+                        var mine = ++load;
+                        var waiting = TemplateParameters.References(p.Source.Url).Concat(TemplateParameters.References(p.Source.Regex))
+                            .Where(r => r != "name" && !paramValues.ContainsKey(r)).ToList();
+                        if (waiting.Count > 0)
+                        {
+                            // Loads once the parameter it depends on has a value.
+                            state.Text = "Waiting for " + string.Join(", ", waiting.Select(w => selected.Parameters.FirstOrDefault(x => x.Id == w)?.Label ?? w));
+                            paramValues.Remove(p.Id);
+                            paramProblems[p.Id] = $"{p.Label} is still loading";
+                            combo.ItemsSource = null;
+                            return;
+                        }
+                        state.Text = "Loading…";
+                        state.Foreground = Res("FgMuted");
+                        paramValues.Remove(p.Id);
+                        paramProblems[p.Id] = $"{p.Label} is still loading";
+                        combo.IsEnabled = false;
+                        try
+                        {
+                            var items = await TemplateParameters.LoadAsync(p.Source, paramValues, (name.Text ?? "").Trim());
+                            if (mine != load || paramsFor != selected) return;
+                            state.Text = items.Count > 0 ? $"{items.Count} available" : "none found";
+                            SetItems(items);
+                        }
+                        catch (Exception e)
+                        {
+                            if (mine != load || paramsFor != selected) return;
+                            state.Text = $"Could not load: {e.Message}";
+                            state.Foreground = Res("Error");
+                            SetItems(p.Options);
+                        }
+                        finally
+                        {
+                            if (mine == load) combo.IsEnabled = true;
+                        }
+                    };
+                    combo.SelectionChanged += (_, _) =>
+                    {
+                        if (updating || combo.SelectedItem is not string s) return;
+                        paramValues[p.Id] = s;
+                        paramProblems.Remove(p.Id);
+                        ParamChanged(p.Id);
+                    };
+                    return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { combo, state } };
+                }
+                default:
+                {
+                    var box = new TextBox { MinWidth = 260, Watermark = p.Default };
+                    var edited = false;
+                    var problem = new TextBlock { FontSize = 11.5, Foreground = Res("Error"), VerticalAlignment = VerticalAlignment.Center };
+                    void Validate()
+                    {
+                        var text = box.Text ?? "";
+                        string? error = text.Trim().Length == 0 ? $"{p.Label} is required"
+                            : p.Pattern is { } pat && !System.Text.RegularExpressions.Regex.IsMatch(text, pat) ? p.PatternMessage ?? $"{p.Label} must match {pat}" : null;
+                        problem.Text = error ?? "";
+                        if (error is null) paramProblems.Remove(p.Id); else paramProblems[p.Id] = error;
+                    }
+                    refreshers[p.Id] = () =>
+                    {
+                        if (edited) return;
+                        updating = true;
+                        box.Text = DefaultOf(p);
+                        updating = false;
+                        paramValues[p.Id] = box.Text ?? "";
+                        Validate();
+                    };
+                    box.TextChanged += (_, _) =>
+                    {
+                        if (updating) return;
+                        edited = true;
+                        paramValues[p.Id] = box.Text ?? "";
+                        Validate();
+                        ParamChanged(p.Id);
+                    };
+                    return new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { box, problem } };
+                }
+            }
+        }
+
+        void BuildParams()
+        {
+            if (paramsFor == selected) return;
+            paramsFor = selected;
+            paramsPanel.Children.Clear();
+            paramValues.Clear();
+            paramProblems.Clear();
+            refreshers.Clear();
+            if (selected.Parameters.Count == 0) return;
+            paramsPanel.Children.Add(new TextBlock { Text = "Settings", FontWeight = FontWeight.SemiBold });
+            foreach (var p in selected.Parameters)
+            {
+                var input = ParamInput(p);
+                var row = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("170,*"),
+                    Children =
+                    {
+                        new TextBlock { Text = p.Type == "boolean" ? "" : p.Label + ":", VerticalAlignment = VerticalAlignment.Center },
+                        new ContentControl { Content = input, [Grid.ColumnProperty] = 1 },
+                    },
+                };
+                row.IsVisible = !p.Hidden;
+                paramsPanel.Children.Add(row);
+                if (p.Description is { Length: > 0 } d && !p.Hidden)
+                    paramsPanel.Children.Add(new TextBlock { Text = d, Classes = { "muted" }, FontSize = 11.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(170, -4, 0, 0) });
+            }
+            // In declaration order, so a parameter's dependencies get their values first.
+            foreach (var p in selected.Parameters) refreshers[p.Id]();
+        }
+
         void Update()
         {
             selected = templates[Math.Max(0, templateList.SelectedIndex)];
             description.Text = selected.Description;
+            BuildParams();
             // Opt-in extras other plugins offer for this template (e.g. a graphics setup).
             optionsPanel.Children.Clear();
             chosenOptions.Clear();
@@ -298,7 +463,7 @@ public abstract partial class IdeWindow
             preview.Text = $"Project will be created in: {Path.Combine(location.Text ?? "", name.Text ?? "")}";
         }
         templateList.SelectionChanged += (_, _) => Update();
-        name.TextChanged += (_, _) => Update();
+        name.TextChanged += (_, _) => { Update(); ParamChanged("name"); };
         location.TextChanged += (_, _) => Update();
         browse.Click += async (_, _) =>
         {
@@ -308,10 +473,16 @@ public abstract partial class IdeWindow
         cancel.Click += (_, _) => back();
         create.Click += async (_, _) =>
         {
+            if (paramProblems.Count > 0)
+            {
+                status.Foreground = Res("Error");
+                status.Text = string.Join("\n", paramProblems.Values);
+                return;
+            }
             create.IsEnabled = false;
             status.Foreground = Res("FgMuted");
             status.Text = "Creating…";
-            var error = await CreateProjectAsync(selected, (name.Text ?? "").Trim(), (location.Text ?? "").Trim(), chosenOptions.ToList());
+            var error = await CreateProjectAsync(selected, (name.Text ?? "").Trim(), (location.Text ?? "").Trim(), chosenOptions.ToList(), new Dictionary<string, string>(paramValues));
             create.IsEnabled = true;
             if (error is null) { if (OverlayOpen) { _overlayCancel = null; CloseOverlay(); } }
             else { status.Foreground = Res("Error"); status.Text = error; }
@@ -335,6 +506,7 @@ public abstract partial class IdeWindow
             Children =
             {
                 description,
+                paramsPanel,
                 optionsPanel,
                 Field("Name:", name),
                 Field("Location:", locationRow),
@@ -350,18 +522,21 @@ public abstract partial class IdeWindow
     }
 
     /// <summary>Creates a project from a template; returns an error message or null on success.</summary>
-    private async Task<string?> CreateProjectAsync(ProjectTemplate template, string name, string location, List<ProjectTemplateOption>? options = null)
+    private async Task<string?> CreateProjectAsync(ProjectTemplate template, string name, string location, List<ProjectTemplateOption>? options = null, IReadOnlyDictionary<string, string>? values = null)
     {
         if (name.Length == 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return "Enter a valid project name.";
         if (location.Length == 0) return "Choose a location.";
         var dir = Path.Combine(location, name);
         if (Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any()) return $"{dir} already exists and is not empty.";
+        values ??= new Dictionary<string, string>();
+        // Template answers (${param.mc}, ${name|id} …) first, then the usual macros.
+        string X(string text) => PluginManager.Expand(TemplateParameters.Expand(text, values, name), dir, null, name);
         try
         {
             Directory.CreateDirectory(location);
             if (!string.IsNullOrWhiteSpace(template.Command))
             {
-                var command = PluginManager.Expand(template.Command, dir, null, name);
+                var command = X(template.Command);
                 var psi = ProcessUtil.ShellStartInfo(command, location);
                 using var p = Process.Start(psi)!;
                 p.StandardInput.Close();
@@ -380,9 +555,17 @@ public abstract partial class IdeWindow
                     JsonValue v => v.GetValue<string>(),
                     _ => "",
                 };
-                var file = Path.Combine(dir, PluginManager.Expand(relative, dir, null, name));
+                var file = Path.Combine(dir, X(relative));
                 Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-                await File.WriteAllTextAsync(file, PluginManager.Expand(text, dir, null, name) + "\n");
+                await File.WriteAllTextAsync(file, X(text) + "\n");
+            }
+            foreach (var (relative, props) in template.Properties)
+                TemplateParameters.SetProperties(Path.Combine(dir, X(relative)), props.ToDictionary(kv => kv.Key, kv => X(kv.Value)));
+            foreach (var relative in template.Delete)
+            {
+                var path = Path.Combine(dir, X(relative));
+                if (File.Exists(path)) File.Delete(path);
+                else if (Directory.Exists(path)) Directory.Delete(path, recursive: true);
             }
         }
         catch (Exception e)
@@ -396,13 +579,13 @@ public abstract partial class IdeWindow
             {
                 foreach (var (relative, content) in option.Files)
                 {
-                    var file = Path.Combine(dir, PluginManager.Expand(relative, dir, null, name));
+                    var file = Path.Combine(dir, X(relative));
                     Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-                    await File.WriteAllTextAsync(file, PluginManager.Expand(FileTemplateContribution.Text(content), dir, null, name) + Environment.NewLine);
+                    await File.WriteAllTextAsync(file, X(FileTemplateContribution.Text(content)) + Environment.NewLine);
                 }
                 foreach (var command in option.Commands)
                 {
-                    var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(PluginManager.Expand(command, dir, null, name), dir);
+                    var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(X(command), dir);
                     if (code != 0) Notify($"{option.Label}: '{command}' failed:{Environment.NewLine}{(stderr + stdout).Trim()}", true);
                 }
             }
@@ -412,13 +595,28 @@ public abstract partial class IdeWindow
             }
         }
 
+        // Follow-up commands of the template itself (e.g. "gradle wrapper"); a failure is reported, the project stays.
+        foreach (var command in template.Commands)
+        {
+            try
+            {
+                var (code, stdout, stderr) = await ProcessUtil.RunCaptureAsync(X(command), dir);
+                if (code != 0) Notify($"'{X(command)}' failed:{Environment.NewLine}{(stderr + stdout).Trim()}", true);
+            }
+            catch (Exception e)
+            {
+                Notify($"'{X(command)}': {e.Message}", true);
+            }
+        }
+
         // Code style files matching the chosen preset (kept if the template brought its own).
         foreach (var (file, content) in CodeStyles.ProjectFiles(Settings))
         {
             var path = Path.Combine(dir, file);
             if (!File.Exists(path)) try { await File.WriteAllTextAsync(path, content); } catch { /* optional */ }
         }
-        var main = new[] { "src/main.rs", "src/main.cpp", "main.cpp", "Program.cs" }.Select(f => Path.Combine(dir, f)).FirstOrDefault(File.Exists);
+        var main = new[] { template.Open is null ? null : X(template.Open), "src/main.rs", "src/main.cpp", "main.cpp", "Program.cs" }
+            .OfType<string>().Select(f => Path.Combine(dir, f)).FirstOrDefault(File.Exists);
         OpenProject(dir, main);
         return null;
     }
