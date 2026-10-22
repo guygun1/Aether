@@ -150,6 +150,7 @@ public partial class MainWindow
         }
 
         var ctx = MacroContext();
+        if (rc.BaseFolder is not null) ctx = ctx with { Workspace = rc.BaseFolder };
         var command = Macros.Expand(rc.CommandLine, ctx);
         if (string.IsNullOrWhiteSpace(command))
         {

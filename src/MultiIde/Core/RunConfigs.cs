@@ -28,6 +28,8 @@ public sealed class RunConfig
     [JsonIgnore] public string? Source { get; set; }
     /// <summary>Set when this configuration lives in its own file in .aether/runConfigurations/.</summary>
     [JsonIgnore] public string? FilePath { get; set; }
+    /// <summary>Set for a configuration inherited from an enclosing folder's .aether; ${workspaceFolder} means that folder.</summary>
+    [JsonIgnore] public string? BaseFolder { get; set; }
 
     public string CommandLine => Type == "program"
         ? $"{(Program.Contains(' ') && !Program.StartsWith('"') ? $"\"{Program}\"" : Program)} {Arguments}".Trim()
@@ -79,8 +81,12 @@ public sealed class RunConfigStore
         {
             // A broken run.json falls back to the other sources.
         }
-        var folder = FolderFor(root);
-        if (Directory.Exists(folder))
+        // The project's own configurations first, then those of enclosing folders up to the repository
+        // root, so opening a subfolder (e.g. src/App) still offers the repository's configurations.
+        foreach (var dir in WithAncestors(root))
+        {
+            var folder = FolderFor(dir);
+            if (!Directory.Exists(folder)) continue;
             foreach (var f in Directory.GetFiles(folder, "*.json").OrderBy(f => f))
             {
                 try
@@ -88,6 +94,7 @@ public sealed class RunConfigStore
                     if (JsonSerializer.Deserialize<RunConfig>(File.ReadAllText(f), Settings.Json) is { } rc && store.Configurations.All(c => c.Name != rc.Name))
                     {
                         rc.FilePath = f;
+                        if (dir != root) rc.BaseFolder = dir;
                         store.Configurations.Add(rc);
                     }
                 }
@@ -96,7 +103,22 @@ public sealed class RunConfigStore
                     // Skip a malformed file.
                 }
             }
+        }
         return store;
+    }
+
+    /// <summary>The folder itself, then its parents up to and including the enclosing git repository root.</summary>
+    private static IEnumerable<string> WithAncestors(string root)
+    {
+        static bool IsRepo(string d) => Directory.Exists(System.IO.Path.Combine(d, ".git")) || File.Exists(System.IO.Path.Combine(d, ".git"));
+        var chain = new List<string> { root };
+        if (IsRepo(root)) return chain;
+        for (var dir = Directory.GetParent(root); dir is not null; dir = dir.Parent)
+        {
+            chain.Add(dir.FullName);
+            if (IsRepo(dir.FullName)) return chain;
+        }
+        return [root]; // not inside a repository: only the folder itself
     }
 
     public void Save(string root)
