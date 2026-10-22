@@ -540,6 +540,9 @@ public partial class MainWindow : IEditorHost
             Toggle("Always Select Opened File", Settings.AutoscrollFromSource, v => Settings.AutoscrollFromSource = v);
             Toggle("Open Files with Single Click", Settings.PreviewTab, v => Settings.PreviewTab = v);
             Toggle("Folders Always on Top", Settings.FoldersFirst, v => Settings.FoldersFirst = v, reload: true);
+            Toggle("Sort by Type", Settings.SortByType, v => Settings.SortByType = v, reload: true);
+            Toggle("Compact Middle Folders", Settings.CompactDirectories, v => Settings.CompactDirectories = v, reload: true);
+            Toggle("File Nesting", Settings.FileNesting, v => Settings.FileNesting = v, reload: true);
             Toggle("Show Hidden Files", Settings.ShowHiddenFiles, v => Settings.ShowHiddenFiles = v, reload: true);
             Toggle("Show Excluded Folders", Settings.ShowExcludedFolders, v => Settings.ShowExcludedFolders = v, reload: true);
             Toggle("Show External Libraries", Settings.ShowExternalLibraries, v => { Settings.ShowExternalLibraries = v; _ = RefreshExternalLibrariesAsync(); });
@@ -766,6 +769,8 @@ public partial class MainWindow : IEditorHost
     }
 
     public void ShowFileStructure(EditorView view, IReadOnlyList<SymbolEntry> symbols) => ShowStructure(view, symbols);
+
+    public void ZoomEditor(int delta) => ChangeFontSize(delta);
 
     public void Status(string message)
     {

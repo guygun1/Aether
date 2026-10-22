@@ -254,7 +254,9 @@ public partial class MainWindow
 
     private async Task RefreshGitAsync()
     {
-        _gitBranch = _root is null ? null : await GitAsync("rev-parse --abbrev-ref HEAD");
+        // rev-parse finds the repository even when the project is a subfolder of it.
+        _gitTopLevel = _root is null ? null : await GitAsync("rev-parse --show-toplevel");
+        _gitBranch = _gitTopLevel is null ? null : await GitAsync("rev-parse --abbrev-ref HEAD") ?? "(no commits)";
         RefreshToolbarState();
     }
 

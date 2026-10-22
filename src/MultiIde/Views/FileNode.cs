@@ -105,47 +105,104 @@ public sealed class FileNode : INotifyPropertyChanged
             FullPath = prepared;
         }
         var path = FullPath;
-        var entries = await Task.Run(() =>
-        {
-            try
-            {
-                var showHidden = IdeServices.Settings.ShowHiddenFiles;
-                bool Visible(string p) => showHidden || !Path.GetFileName(p).StartsWith('.');
-                var settings = IdeServices.Settings;
-                var excluded = settings.ShowExcludedFolders ? new HashSet<string>() : settings.ExcludedFolderSet();
-                var dirs = Directory.GetDirectories(path).Where(Visible).Where(d => !excluded.Contains(Path.GetFileName(d))).Select(d => (Path: d, Dir: true));
-                var files = Directory.GetFiles(path).Where(Visible).Select(f => (Path: f, Dir: false));
-                var all = dirs.Concat(files);
-                return (settings.FoldersFirst ? all.OrderBy(e => e.Dir ? 0 : 1) : all.OrderBy(_ => 0))
-                    .ThenBy(e => Path.GetFileName(e.Path), StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-            }
-            catch
-            {
-                return new List<(string Path, bool Dir)>();
-            }
-        });
+        var entries = await Task.Run(() => ReadEntries(path));
 
         Dispatcher.UIThread.VerifyAccess();
         // Keep expanded sub-folders when refreshing.
         var expanded = Children.Where(c => c.IsDirectory && c.IsExpanded).ToDictionary(c => c.FullPath, c => c, StringComparer.OrdinalIgnoreCase);
         Children.Clear();
-        foreach (var (p, dir) in entries)
+        foreach (var e in entries)
         {
-            if (dir && expanded.TryGetValue(p, out var existing))
+            if (e.Dir && expanded.TryGetValue(e.Path, out var existing))
             {
                 Children.Add(existing);
                 _ = existing.LoadAsync();
+                continue;
             }
+            FileNode node;
+            if (!e.Dir && DllExpander is { } expand && e.Name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && IdePaths.IsLibraryPath(e.Path))
+                node = new FileNode(e.Name, e.Path, true, _plugins) { Glyph = "", IconBrush = ThemeManager.Brush("Link"), BeforeLoad = () => expand(e.Path) };
             else
-            {
-                var name = Path.GetFileName(p);
-                if (!dir && DllExpander is { } expand && name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) && IdePaths.IsLibraryPath(p))
-                    Children.Add(new FileNode(name, p, true, _plugins) { Glyph = "", IconBrush = ThemeManager.Brush("Link"), BeforeLoad = () => expand(p) });
-                else
-                    Children.Add(new FileNode(name, p, dir, _plugins));
-            }
+                node = new FileNode(e.Name, e.Path, e.Dir, _plugins);
+            foreach (var nested in e.Nested) node.Children.Add(new FileNode(Path.GetFileName(nested), nested, false, _plugins));
+            Children.Add(node);
         }
+    }
+
+    private sealed record Entry(string Path, string Name, bool Dir, List<string> Nested);
+
+    /// <summary>Files shown under another file (IntelliJ "File Nesting"): parent suffix → child suffixes.</summary>
+    private static readonly (string Parent, string[] Children)[] NestingRules =
+    {
+        (".axaml", [".axaml.cs"]), (".xaml", [".xaml.cs"]), (".razor", [".razor.cs", ".razor.css"]), (".cshtml", [".cshtml.cs"]),
+        (".ts", [".js", ".js.map", ".d.ts"]), (".js", [".js.map", ".min.js"]), (".scss", [".css", ".css.map"]),
+    };
+
+    private static readonly (string Parent, string Child)[] NestedNames =
+    {
+        ("Cargo.toml", "Cargo.lock"), ("package.json", "package-lock.json"), ("package.json", "yarn.lock"), ("pyproject.toml", "poetry.lock"),
+    };
+
+    /// <summary>Lists a folder applying the Project view options (runs off the UI thread).</summary>
+    private static List<Entry> ReadEntries(string path)
+    {
+        try
+        {
+            var settings = IdeServices.Settings;
+            bool Visible(string p) => settings.ShowHiddenFiles || !Path.GetFileName(p).StartsWith('.');
+            var excluded = settings.ShowExcludedFolders ? new HashSet<string>() : settings.ExcludedFolderSet();
+
+            var dirs = Directory.GetDirectories(path).Where(Visible).Where(d => !excluded.Contains(Path.GetFileName(d)))
+                .Select(d => Compact(d, settings.CompactDirectories)).ToList();
+            var files = Directory.GetFiles(path).Where(Visible).Select(f => new Entry(f, Path.GetFileName(f), false, new())).ToList();
+
+            if (settings.FileNesting)
+            {
+                var byName = files.ToDictionary(f => f.Name, StringComparer.OrdinalIgnoreCase);
+                var nestedAway = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var f in files)
+                {
+                    foreach (var (parentSuffix, childSuffixes) in NestingRules)
+                    {
+                        if (!f.Name.EndsWith(parentSuffix, StringComparison.OrdinalIgnoreCase)) continue;
+                        var stem = f.Name[..^parentSuffix.Length];
+                        foreach (var cs in childSuffixes)
+                            if (byName.TryGetValue(stem + cs, out var child) && child != f && !nestedAway.Contains(f.Name) && nestedAway.Add(child.Name))
+                                f.Nested.Add(child.Path);
+                    }
+                    foreach (var (parent, childName) in NestedNames)
+                        if (f.Name.Equals(parent, StringComparison.OrdinalIgnoreCase) && byName.TryGetValue(childName, out var child) && nestedAway.Add(child.Name))
+                            f.Nested.Add(child.Path);
+                }
+                files.RemoveAll(f => nestedAway.Contains(f.Name));
+            }
+
+            IEnumerable<Entry> all = dirs.Concat(files);
+            var ordered = settings.FoldersFirst ? all.OrderBy(e => e.Dir ? 0 : 1) : all.OrderBy(_ => 0);
+            if (settings.SortByType) ordered = ordered.ThenBy(e => e.Dir ? "" : Path.GetExtension(e.Name), StringComparer.OrdinalIgnoreCase);
+            return ordered.ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    /// <summary>IntelliJ "Compact Middle Packages": a chain of single-child folders shows as "a/b/c".</summary>
+    private static Entry Compact(string dir, bool enabled)
+    {
+        var name = Path.GetFileName(dir);
+        if (!enabled) return new Entry(dir, name, true, new());
+        for (var depth = 0; depth < 8; depth++)
+        {
+            string[] entries;
+            try { entries = Directory.GetFileSystemEntries(dir); }
+            catch { break; }
+            if (entries.Length != 1 || !Directory.Exists(entries[0])) break;
+            dir = entries[0];
+            name += "/" + Path.GetFileName(dir);
+        }
+        return new Entry(dir, name, true, new());
     }
 
     /// <summary>Reloads this folder if it has been loaded before.</summary>

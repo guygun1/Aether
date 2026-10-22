@@ -7,6 +7,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using MultiIde.Core;
 using MultiIde.Editor;
 using MultiIde.Protocol;
 
@@ -20,6 +21,7 @@ public partial class MainWindow
     private ConsoleView _terminal = null!;
     private ConsoleView _log = null!;
     private ListBox _problemsList = null!;
+    private ListBox _todoList = null!;
     private ListBox _findList = null!;
     private TextBox _findBox = null!;
     private CheckBox _findCase = null!;
@@ -37,6 +39,8 @@ public partial class MainWindow
         _bottomTools["terminal"] = ("Terminal", _terminal, new Control[] { ToolButton("", "Clear", () => _terminal.Clear()) });
         _bottomTools["log"] = ("Log", _log, new Control[] { ToolButton("", "Clear", () => _log.Clear()) });
 
+        _todoList = ResultList();
+        _bottomTools["todo"] = ("TODO", _todoList, new Control[] { ToolButton("", "Refresh", () => _ = RefreshTodoAsync()) });
         _problemsList = ResultList();
         _bottomTools["problems"] = ("Problems", _problemsList, Array.Empty<Control>());
 
@@ -108,11 +112,31 @@ public partial class MainWindow
                 Dispatcher.UIThread.Post(_terminal.FocusInput, DispatcherPriority.Input);
             }
             if (tool == "problems") RefreshProblems();
+            if (tool == "todo") _ = RefreshTodoAsync();
         }
         ApplyLayout();
     }
 
     public void AppendLog(string line) => _log?.WriteLine($"{DateTime.Now:HH:mm:ss}  {line}");
+
+    // ---- TODO -----------------------------------------------------------------
+
+    /// <summary>Lists TODO / FIXME / HACK / XXX comments across the project.</summary>
+    private async Task RefreshTodoAsync()
+    {
+        if (_search is null) return;
+        var hits = new List<TextHit>();
+        foreach (var word in new[] { "TODO", "FIXME", "HACK", "XXX" })
+            hits.AddRange(await _search.FindInFilesAsync(word, matchCase: true, limit: 2000, CancellationToken.None));
+        var items = hits.Where(h => TodoColorizer.Pattern.IsMatch(h.Text))
+            .DistinctBy(h => (h.Path, h.Line))
+            .OrderBy(h => h.Relative).ThenBy(h => h.Line)
+            .Select(h => new ResultItem(h.Path, h.Relative, h.Line, h.Column, TodoColorizer.Pattern.Match(h.Text).Value))
+            .ToList();
+        _todoList.ItemsSource = items;
+        _bottomTools["todo"] = ($"TODO  {items.Count}", _todoList, _bottomTools["todo"].Toolbar);
+        if (_bottomTool == "todo") BottomTitle.Text = _bottomTools["todo"].Title;
+    }
 
     // ---- Problems -------------------------------------------------------------
 

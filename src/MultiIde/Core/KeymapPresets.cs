@@ -56,6 +56,8 @@ public static class KeymapPresets
         ["build"] = "Ctrl+F9",
         ["searchEverywhere"] = "Double Shift",
         ["gotoFile"] = "Ctrl+Shift+N",
+        ["nextProblem"] = "F2",
+        ["prevProblem"] = "Shift+F2",
     };
 
     public static string? Override(string preset, string actionId) => preset switch

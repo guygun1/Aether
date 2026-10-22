@@ -51,6 +51,7 @@ public static class SettingsSchema
         Bool("Editor", "Show indent guides", s => s.ShowIndentGuides, (s, v) => s.ShowIndentGuides = v),
         Bool("Editor", "Highlight current line", s => s.HighlightCurrentLine, (s, v) => s.HighlightCurrentLine = v),
         Bool("Editor", "Highlight usages of the symbol at the caret", s => s.HighlightOccurrences, (s, v) => s.HighlightOccurrences = v),
+        Bool("Editor", "Inlay hints (types and parameter names from the language server)", s => s.InlayHints, (s, v) => s.InlayHints = v),
         Bool("Editor", "Highlight matching brackets", s => s.BracketHighlight, (s, v) => s.BracketHighlight = v),
         Bool("Editor", "Code folding", s => s.ShowFolding, (s, v) => s.ShowFolding = v, "Takes effect for newly opened files."),
         Bool("Editor", "Scroll past the end of the file", s => s.ScrollPastEnd, (s, v) => s.ScrollPastEnd = v),
@@ -78,6 +79,13 @@ public static class SettingsSchema
 
         // Project view
         Bool("Project View", "Open files with a single click (preview tab)", s => s.PreviewTab, (s, v) => s.PreviewTab = v),
+        Bool("Project View", "Always select the opened file", s => s.AutoscrollFromSource, (s, v) => s.AutoscrollFromSource = v),
+        Bool("Project View", "Folders always on top", s => s.FoldersFirst, (s, v) => s.FoldersFirst = v),
+        Bool("Project View", "Sort files by type", s => s.SortByType, (s, v) => s.SortByType = v),
+        Bool("Project View", "Compact middle folders (a/b/c)", s => s.CompactDirectories, (s, v) => s.CompactDirectories = v),
+        Bool("Project View", "File nesting (Foo.axaml.cs under Foo.axaml, Cargo.lock under Cargo.toml…)", s => s.FileNesting, (s, v) => s.FileNesting = v),
+        Bool("Project View", "Show excluded folders", s => s.ShowExcludedFolders, (s, v) => s.ShowExcludedFolders = v),
+        Bool("Project View", "Show External Libraries", s => s.ShowExternalLibraries, (s, v) => s.ShowExternalLibraries = v),
         Bool("Project View", "Show hidden files (dot files)", s => s.ShowHiddenFiles, (s, v) => s.ShowHiddenFiles = v),
         Text("Project View", "Excluded folders", s => s.ExcludedFolders, (s, v) => s.ExcludedFolders = v, "Semicolon-separated. Skipped by search and dimmed in the tree."),
 

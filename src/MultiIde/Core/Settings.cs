@@ -74,6 +74,9 @@ public sealed class Settings
     public bool FoldersFirst { get; set; } = true;
     public bool ShowExcludedFolders { get; set; } = true;
     public bool ShowExternalLibraries { get; set; } = true;
+    public bool FileNesting { get; set; } = true;
+    public bool CompactDirectories { get; set; } = true;
+    public bool SortByType { get; set; }
     public List<string> DisabledPlugins { get; set; } = new();
     /// <summary>Values of plugin-declared settings: pluginId → key → value.</summary>
     public Dictionary<string, Dictionary<string, System.Text.Json.Nodes.JsonNode?>> PluginSettings { get; set; } = new();
@@ -112,6 +115,7 @@ public sealed class Settings
     public bool ShowFolding { get; set; } = true;
     public bool ScrollPastEnd { get; set; } = true;
     public bool BracketHighlight { get; set; } = true;
+    public bool InlayHints { get; set; } = true;
     // Code completion & typing
     public bool AutoPopupCompletion { get; set; } = true;
     public int CompletionDelayMs { get; set; }

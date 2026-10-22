@@ -40,6 +40,8 @@ public interface IEditorHost
     void Status(string message);
     /// <summary>Turns a non-file location (e.g. "csharp:/metadata/...") into a local, read-only file.</summary>
     Task<CodeLocation?> ResolveExternalAsync(LspClient lsp, CodeLocation location);
+    /// <summary>Ctrl+wheel: grows (1) or shrinks (-1) the editor font everywhere.</summary>
+    void ZoomEditor(int delta);
     /// <summary>Formats with a plugin formatter if one applies; returns false to fall back to the language server.</summary>
     Task<bool> TryPluginFormatAsync(EditorView view);
 }
@@ -48,7 +50,7 @@ public interface IEditorHost
 /// A code editor tab: AvaloniaEdit + TextMate highlighting + LSP features
 /// (completion, hover, diagnostics, navigation, refactoring) + IntelliJ keymap.
 /// </summary>
-public sealed class EditorView : UserControl
+public sealed partial class EditorView : UserControl
 {
     private static readonly Regex WordRegex = new(@"\b[\p{L}_][\p{L}\p{Nd}_]{2,}\b", RegexOptions.Compiled);
 
@@ -160,6 +162,7 @@ public sealed class EditorView : UserControl
         root.Children.Add(Editor);
         root.Children.Add(_popup);
         Content = root;
+        InstallExtras(root);
 
         _foldTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(600), DispatcherPriority.Background, (_, _) => UpdateFoldings());
         _diagnosticsTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(Math.Max(1, settings.DiagnosticsDelayMs)), DispatcherPriority.Background, (_, _) =>
@@ -217,6 +220,7 @@ public sealed class EditorView : UserControl
         };
         doc.DiagnosticsChanged += () => Dispatcher.UIThread.Post(() =>
         {
+            RefreshStripe();
             // While the typing-pause timer runs, its tick applies the latest diagnostics.
             if (!_diagnosticsTimer.IsEnabled) RefreshDiagnostics();
         });

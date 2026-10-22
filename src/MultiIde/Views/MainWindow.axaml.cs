@@ -169,6 +169,7 @@ public partial class MainWindow : IdeWindow
         LeftStripeBottom.Children.Add(StripeButton("run", "", "Run (Alt+4)", () => ToggleBottom("run")));
         LeftStripeBottom.Children.Add(StripeButton("terminal", "", "Terminal (Alt+F12)", () => ToggleBottom("terminal")));
         LeftStripeBottom.Children.Add(StripeButton("problems", "", "Problems (Alt+6)", () => ToggleBottom("problems")));
+        LeftStripeBottom.Children.Add(StripeButton("todo", "", "TODO", () => ToggleBottom("todo")));
         LeftStripeBottom.Children.Add(StripeButton("find", "", "Find (Alt+3)", () => ToggleBottom("find")));
         LeftStripeBottom.Children.Add(StripeButton("log", "", "Language Server & MCP Log", () => ToggleBottom("log")));
         RightStripe.Children.Add(StripeButton("deps", "\uE8F1", "Dependencies", () => { ToggleRight("deps"); if (_rightTool == "deps") _ = RefreshDependenciesAsync(); }));
@@ -300,6 +301,9 @@ public partial class MainWindow : IdeWindow
         Act("prevTab", "Select Previous Tab", "Navigate", "Alt+Left", () => CycleTab(-1));
         Act("gotoClass", "Go to Class…", "Navigate", "Ctrl+N", () => ShowSearch(SearchMode.Symbols));
         Act("back", "Back", "Navigate", "Ctrl+Alt+Left", NavigateBack);
+        Act("nextProblem", "Next Highlighted Error", "Navigate", "F8", () => OnEditor(v => v.NextProblem(1)));
+        Act("prevProblem", "Previous Highlighted Error", "Navigate", "Shift+F8", () => OnEditor(v => v.NextProblem(-1)));
+        Act("viewTodo", "TODO", "View", null, () => ToggleBottom("todo"));
         Act("forward", "Forward", "Navigate", "Ctrl+Alt+Right", NavigateForward);
 
         Act("complete", "Code Completion", "Code", "Ctrl+Space", () => OnEditor(v => _ = v.TriggerCompletionAsync(true, null)));

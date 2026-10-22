@@ -13,7 +13,9 @@ namespace MultiIde.Views;
 /// </summary>
 public partial class MainWindow
 {
-    private bool IsGitRepo => _root is not null && Directory.Exists(Path.Combine(_root, ".git"));
+    /// <summary>The repository containing the project (may be a parent folder), or null.</summary>
+    private string? _gitTopLevel;
+    private bool IsGitRepo => _gitTopLevel is not null;
 
     /// <summary>Runs git with arguments (no shell quoting issues) and captures the result.</summary>
     private async Task<(int Code, string Output)> GitExecAsync(params string[] args)
@@ -58,7 +60,8 @@ public partial class MainWindow
     private async Task GitInitAsync()
     {
         if (_root is null) return;
-        if (IsGitRepo) { Notify("This project already is a Git repository."); return; }
+        await RefreshGitAsync();
+        if (IsGitRepo) { Notify($"This project is already in a Git repository ({_gitTopLevel})."); return; }
         var (code, output) = await GitExecAsync("init", "-b", "main");
         if (code != 0) { Notify(output, true); return; }
         var ignore = Path.Combine(_root, ".gitignore");
