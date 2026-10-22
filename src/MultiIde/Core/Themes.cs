@@ -156,6 +156,22 @@ public static class ThemeManager
         if (Application.Current is { } app)
             app.RequestedThemeVariant = IsLight ? ThemeVariant.Light : ThemeVariant.Dark;
 
+        // Syntax colour scheme: the theme's own token colours, or the JetBrains / Visual Studio ones
+        // (dark or light to match the theme), drawn on the theme's editor background.
+        var scheme = IdeServices.Settings.SyntaxScheme;
+        if (scheme is "jetbrains" or "visualstudio")
+        {
+            var schemeDoc = JsonNode.Parse(ReadAsset($"avares://Aether/Assets/syntax/{scheme}-{(IsLight ? "light" : "dark")}.json"))!;
+            var tokens = schemeDoc["tokenColors"]!.DeepClone().AsArray();
+            if (tokens[0]?["settings"] is JsonObject defaults)
+            {
+                defaults["background"] = Color("EditorBg").ToString();
+                if (defaults["foreground"]?.GetValue<string>() is { } schemeFg) SetBrush("EditorText", schemeFg);
+            }
+            doc["tokenColors"] = tokens;
+            json = doc.ToJsonString();
+        }
+
         // TextMate token colors: feed the same JSON to TextMateSharp's theme reader.
         using var reader = new StreamReader(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json)));
         TokenTheme = ThemeReader.ReadThemeSync(reader);

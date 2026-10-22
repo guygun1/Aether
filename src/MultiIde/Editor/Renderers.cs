@@ -66,11 +66,22 @@ public sealed class DiagnosticRenderer : IBackgroundRenderer
     }
 }
 
-/// <summary>Ctrl+hover link: a glowing blue underline under a symbol that Ctrl+click can navigate to.</summary>
-public sealed class LinkUnderlineRenderer : IBackgroundRenderer
+/// <summary>
+/// Ctrl+hover link: the symbol that Ctrl+click navigates to turns link-blue with a softly glowing blue underline.
+/// Added both as a background renderer (the line) and a line transformer (the text colour).
+/// </summary>
+public sealed class LinkUnderlineRenderer : DocumentColorizingTransformer, IBackgroundRenderer
 {
     public TextSegment? Segment { get; set; }
     public KnownLayer Layer => KnownLayer.Selection;
+
+    protected override void ColorizeLine(DocumentLine line)
+    {
+        if (Segment is not { } s || s.EndOffset <= line.Offset || s.StartOffset >= line.EndOffset) return;
+        var brush = ThemeManager.Brush("Link");
+        ChangeLinePart(Math.Max(s.StartOffset, line.Offset), Math.Min(s.EndOffset, line.EndOffset),
+            el => el.TextRunProperties.SetForegroundBrush(brush));
+    }
 
     public void Draw(TextView textView, DrawingContext ctx)
     {

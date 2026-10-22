@@ -93,6 +93,8 @@ public sealed class Settings
     /// <summary>False until the first-run setup has been completed or skipped.</summary>
     public bool SetupDone { get; set; }
     public string Theme { get; set; } = "midnight";
+    /// <summary>Syntax colours: "aether" (the theme's own), "jetbrains" or "visualstudio".</summary>
+    public string SyntaxScheme { get; set; } = "aether";
     public string EditorFont { get; set; } = "JetBrains Mono, Cascadia Mono, Consolas";
     public double LineSpacing { get; set; } = 1.25;
     public bool HighlightOccurrences { get; set; } = true;
@@ -128,6 +130,7 @@ public sealed class Settings
     public bool AutoCloseQuotes { get; set; } = true;
     public bool ParameterHints { get; set; } = true;
     public bool HoverDocs { get; set; } = true;
+    public bool MouseBackForward { get; set; } = true;
     // Project view & run
     public bool ShowHiddenFiles { get; set; } = true;
     public string ExcludedFolders { get; set; } = ".git;node_modules;target;bin;obj;build;out;cmake-build-debug;cmake-build-release;.vs;.idea";

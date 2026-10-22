@@ -17,7 +17,7 @@ public abstract partial class IdeWindow
         void Changed(SettingDef def)
         {
             Settings.Save();
-            if (def.Kind == "theme") App.SetTheme(Settings.Theme);
+            if (def.Kind == "theme" || def.Title == "Syntax highlighting") App.SetTheme(Settings.Theme);
             App.BroadcastSettings();
         }
 

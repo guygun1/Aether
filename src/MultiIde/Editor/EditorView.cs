@@ -961,9 +961,15 @@ public sealed partial class EditorView : UserControl
             var result = await lsp.RequestAsync("textDocument/definition", Doc.PositionParams(start));
             if (probe != _linkProbe || version != _editVersion) return; // the mouse moved on, or the text changed
             if (ParseLocations(result).Count == 0) { ClearLink(); return; }
+            ClearLink();
             _link.Segment = new TextSegment { StartOffset = start, EndOffset = end };
-            Editor.TextArea.TextView.Cursor = new Cursor(StandardCursorType.Hand);
-            Editor.TextArea.TextView.InvalidateLayer(_link.Layer);
+            var view = Editor.TextArea.TextView;
+            // Last transformer wins, so the link colour paints over syntax highlighting.
+            view.LineTransformers.Remove(_link);
+            view.LineTransformers.Add(_link);
+            view.Cursor = new Cursor(StandardCursorType.Hand);
+            view.Redraw(_link.Segment);
+            view.InvalidateLayer(_link.Layer);
         }
         catch
         {
@@ -974,10 +980,12 @@ public sealed partial class EditorView : UserControl
     private void ClearLink()
     {
         _linkProbe++;
-        if (_link.Segment is null) return;
+        if (_link.Segment is not { } old) return;
         _link.Segment = null;
-        Editor.TextArea.TextView.Cursor = Cursor.Default;
-        Editor.TextArea.TextView.InvalidateLayer(_link.Layer);
+        var view = Editor.TextArea.TextView;
+        view.Cursor = Cursor.Default;
+        if (old.EndOffset <= Doc.Text.TextLength) view.Redraw(old);
+        view.InvalidateLayer(_link.Layer);
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)

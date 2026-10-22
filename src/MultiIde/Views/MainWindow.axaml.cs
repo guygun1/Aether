@@ -54,6 +54,14 @@ public partial class MainWindow : IdeWindow
 
         AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
         AddHandler(KeyUpEvent, OnGlobalKeyUp, RoutingStrategies.Tunnel);
+        // Mouse side buttons: Back / Forward through the navigation history.
+        AddHandler(PointerPressedEvent, (_, e) =>
+        {
+            if (!Settings.MouseBackForward) return;
+            var kind = e.GetCurrentPoint(this).Properties.PointerUpdateKind;
+            if (kind == PointerUpdateKind.XButton1Pressed) { NavigateBack(); e.Handled = true; }
+            else if (kind == PointerUpdateKind.XButton2Pressed) { NavigateForward(); e.Handled = true; }
+        }, RoutingStrategies.Tunnel, handledEventsToo: true);
         Deactivated += (_, _) => { if (Settings.AutoSave) _ = SaveAllAsync(quiet: true); };
         Closing += OnClosing;
 

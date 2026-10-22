@@ -31,6 +31,9 @@ public static class SettingsSchema
     {
         // Appearance & motion
         new("Appearance", "Theme", "theme", s => s.Theme, (s, v) => s.Theme = (string)v, "Themes come from plugins; TextMate-style theme files (colors + tokenColors) work too."),
+        new("Appearance", "Syntax highlighting", "choice", s => s.SyntaxScheme, (s, v) => s.SyntaxScheme = (string)v,
+            "Code colours. Aether uses the theme's own; JetBrains and Visual Studio match those IDEs (dark or light, following the theme).",
+            Choices: [("aether", "Aether"), ("jetbrains", "JetBrains"), ("visualstudio", "Visual Studio")]),
         new("Appearance", "Animations", "choice", s => s.AnimationMode, (s, v) => s.AnimationMode = (string)v,
             "Animated: eased hover, popups, panels and scrolling. Instant: everything snaps immediately.",
             Choices: [("animated", "Animated"), ("instant", "Instant")]),
@@ -55,6 +58,8 @@ public static class SettingsSchema
         Bool("Editor", "Highlight matching brackets", s => s.BracketHighlight, (s, v) => s.BracketHighlight = v),
         Bool("Editor", "Code folding", s => s.ShowFolding, (s, v) => s.ShowFolding = v, "Takes effect for newly opened files."),
         Bool("Editor", "Scroll past the end of the file", s => s.ScrollPastEnd, (s, v) => s.ScrollPastEnd = v),
+        Bool("Editor", "Mouse back / forward buttons navigate", s => s.MouseBackForward, (s, v) => s.MouseBackForward = v,
+            "The side buttons on your mouse go back to where you were before a jump (e.g. after Ctrl+click), like Back / Forward on the toolbar."),
 
         // Code completion
         Bool("Code Completion", "Show suggestions as you type", s => s.AutoPopupCompletion, (s, v) => s.AutoPopupCompletion = v, "Ctrl+Space always works."),
