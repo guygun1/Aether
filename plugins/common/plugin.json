@@ -1,0 +1,24 @@
+{
+  "id": "common-formats",
+  "name": "Common File Formats",
+  "version": "0.1.0",
+  "description": "Highlighting for JSON, Markdown, YAML, shell, PowerShell, Python, Go, JS/TS, HTML and more, using grammars bundled with the IDE.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      { "id": "json", "name": "JSON", "extensions": [".json", ".jsonc"], "scopeName": "source.json", "icon": "{}", "iconColor": "#B3AE60" },
+      { "id": "markdown", "name": "Markdown", "extensions": [".md", ".markdown"], "icon": "MD", "iconColor": "#548AF7" },
+      { "id": "yaml", "name": "YAML", "extensions": [".yml", ".yaml"], "lineComment": "#", "icon": "YM", "iconColor": "#C77DBB" },
+      { "id": "toml", "name": "TOML", "extensions": [".toml"], "lineComment": "#", "icon": "TO", "iconColor": "#868A91" },
+      { "id": "shellscript", "name": "Shell", "extensions": [".sh", ".bash"], "lineComment": "#", "icon": "SH", "iconColor": "#5FB865" },
+      { "id": "powershell", "name": "PowerShell", "extensions": [".ps1", ".psm1"], "lineComment": "#", "icon": "PS", "iconColor": "#3574F0" },
+      { "id": "bat", "name": "Batch", "extensions": [".bat", ".cmd"], "lineComment": "REM", "icon": "BA", "iconColor": "#868A91" },
+      { "id": "python", "name": "Python", "extensions": [".py", ".pyw"], "lineComment": "#", "icon": "PY", "iconColor": "#3C78AA" },
+      { "id": "go", "name": "Go", "extensions": [".go"], "lineComment": "//", "blockComment": ["/*", "*/"], "icon": "GO", "iconColor": "#2AACB8" },
+      { "id": "javascript", "name": "JavaScript", "extensions": [".js", ".mjs", ".cjs"], "lineComment": "//", "blockComment": ["/*", "*/"], "icon": "JS", "iconColor": "#D5B778" },
+      { "id": "typescript", "name": "TypeScript", "extensions": [".ts", ".tsx"], "lineComment": "//", "blockComment": ["/*", "*/"], "icon": "TS", "iconColor": "#3574F0" },
+      { "id": "html", "name": "HTML", "extensions": [".html", ".htm"], "blockComment": ["<!--", "-->"], "icon": "<>", "iconColor": "#E08855" },
+      { "id": "css", "name": "CSS", "extensions": [".css"], "blockComment": ["/*", "*/"], "icon": "CS", "iconColor": "#548AF7" }
+    ]
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "id": "rust",
+  "name": "Rust",
+  "version": "0.1.0",
+  "description": "Rust language support powered by rust-analyzer, with Cargo run configurations and project templates.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rust",
+        "name": "Rust",
+        "extensions": [
+          ".rs"
+        ],
+        "scopeName": "source.rust",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "RS",
+        "iconColor": "#E8743B"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "rust-analyzer",
+        "name": "rust-analyzer",
+        "command": "rust-analyzer",
+        "languages": [
+          "rust"
+        ],
+        "install": "rustup component add rust-analyzer",
+        "installUrl": "https://rust-analyzer.github.io/book/installation.html",
+        "initializationOptions": {
+          "checkOnSave": true,
+          "check": {
+            "command": "clippy"
+          }
+        }
+      }
+    ],
+    "runConfigurations": [
+      {
+        "name": "cargo run",
+        "command": "cargo run",
+        "when": "Cargo.toml"
+      },
+      {
+        "name": "cargo build",
+        "command": "cargo build",
+        "when": "Cargo.toml",
+        "kind": "build"
+      },
+      {
+        "name": "cargo test",
+        "command": "cargo test",
+        "when": "Cargo.toml",
+        "kind": "test"
+      },
+      {
+        "name": "cargo clippy",
+        "command": "cargo clippy",
+        "when": "Cargo.toml",
+        "kind": "build"
+      },
+      {
+        "name": "cargo run --release",
+        "command": "cargo run --release",
+        "when": "Cargo.toml"
+      }
+    ],
+    "projectTemplates": [
+      {
+        "id": "rust-bin",
+        "name": "Rust: Binary (Cargo)",
+        "description": "A Cargo application with src/main.rs. Needs the Rust toolchain (rustup).",
+        "command": "cargo new \"${name}\""
+      },
+      {
+        "id": "rust-lib",
+        "name": "Rust: Library (Cargo)",
+        "description": "A Cargo library with src/lib.rs and a unit test.",
+        "command": "cargo new --lib \"${name}\""
+      }
+    ],
+    "snippets": [
+      {
+        "language": "rust",
+        "prefix": "fn",
+        "body": [
+          "fn ${1:name}(${2}) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Function"
+      },
+      {
+        "language": "rust",
+        "prefix": "main",
+        "body": [
+          "fn main() {",
+          "\t$0",
+          "}"
+        ],
+        "description": "main function"
+      },
+      {
+        "language": "rust",
+        "prefix": "test",
+        "body": [
+          "#[test]",
+          "fn ${1:it_works}() {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Test function"
+      },
+      {
+        "language": "rust",
+        "prefix": "tmod",
+        "body": [
+          "#[cfg(test)]",
+          "mod tests {",
+          "\tuse super::*;",
+          "",
+          "\t#[test]",
+          "\tfn ${1:it_works}() {",
+          "\t\t$0",
+          "\t}",
+          "}"
+        ],
+        "description": "Test module"
+      },
+      {
+        "language": "rust",
+        "prefix": "impl",
+        "body": [
+          "impl ${1:Type} {",
+          "\t$0",
+          "}"
+        ],
+        "description": "impl block"
+      },
+      {
+        "language": "rust",
+        "prefix": "derive",
+        "body": "#[derive(${1:Debug, Clone})]",
+        "description": "derive attribute"
+      },
+      {
+        "language": "rust",
+        "prefix": "surround-if",
+        "body": [
+          "if ${1:condition} {",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with if"
+      },
+      {
+        "language": "rust",
+        "prefix": "surround-loop",
+        "body": [
+          "loop {",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with loop"
+      },
+      {
+        "language": "rust",
+        "prefix": "surround-unsafe",
+        "body": [
+          "unsafe {",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with unsafe block"
+      },
+      {
+        "language": "rust",
+        "prefix": "surround-block",
+        "body": [
+          "{",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with block"
+      }
+    ],
+    "dependencyManagers": [
+      {
+        "id": "cargo",
+        "name": "Cargo",
+        "manifest": "Cargo.toml",
+        "format": "cargo",
+        "add": "cargo add ${name}${version}",
+        "remove": "cargo remove ${name}",
+        "update": "cargo update -p ${name}",
+        "restore": "cargo fetch",
+        "docs": "https://docs.rs/${name}",
+        "search": "https://crates.io/search?q=${query}"
+      }
+    ]
+  }
+}

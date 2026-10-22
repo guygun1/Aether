@@ -1,0 +1,46 @@
+<!--
+  Theme brushes. ThemeManager recolors these instances in place when the theme changes,
+  so reference them (StaticResource or ThemeManager.Brush) instead of hard-coding colors.
+  Defaults are JetBrains "New UI" dark.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <SolidColorBrush x:Key="EditorBg" Color="#1E1F22" />
+  <SolidColorBrush x:Key="PanelBg" Color="#2B2D30" />
+  <SolidColorBrush x:Key="PopupBg" Color="#2B2D30" />
+  <SolidColorBrush x:Key="InputBg" Color="#1E1F22" />
+  <SolidColorBrush x:Key="Border" Color="#393B40" />
+  <SolidColorBrush x:Key="BorderStrong" Color="#4E5157" />
+  <SolidColorBrush x:Key="Fg" Color="#DFE1E5" />
+  <SolidColorBrush x:Key="FgEditor" Color="#BCBEC4" />
+  <SolidColorBrush x:Key="FgMuted" Color="#868A91" />
+  <SolidColorBrush x:Key="FgDisabled" Color="#5A5D63" />
+  <SolidColorBrush x:Key="Hover" Color="#393B40" />
+  <SolidColorBrush x:Key="Selection" Color="#2E436E" />
+  <SolidColorBrush x:Key="SelectionInactive" Color="#393B40" />
+  <SolidColorBrush x:Key="Accent" Color="#3574F0" />
+  <SolidColorBrush x:Key="AccentHover" Color="#4682FA" />
+  <SolidColorBrush x:Key="Error" Color="#F75464" />
+  <SolidColorBrush x:Key="Warning" Color="#E0BB65" />
+  <SolidColorBrush x:Key="Success" Color="#5FB865" />
+  <SolidColorBrush x:Key="Link" Color="#548AF7" />
+
+  <!-- Editor -->
+  <SolidColorBrush x:Key="EditorText" Color="#BCBEC4" />
+  <SolidColorBrush x:Key="EditorLineNumber" Color="#4B5059" />
+  <SolidColorBrush x:Key="EditorLineNumberActive" Color="#A1A3AB" />
+  <SolidColorBrush x:Key="EditorCurrentLine" Color="#26282E" />
+  <SolidColorBrush x:Key="EditorSelection" Color="#214283" />
+  <SolidColorBrush x:Key="EditorCaret" Color="#CED0D6" />
+  <SolidColorBrush x:Key="EditorSearchMatch" Color="#32593D" />
+  <SolidColorBrush x:Key="EditorBracketMatch" Color="#43454A" />
+  <SolidColorBrush x:Key="EditorOccurrence" Color="#373B39" />
+  <SolidColorBrush x:Key="EditorIndentGuide" Color="#313438" />
+  <SolidColorBrush x:Key="EditorWhitespace" Color="#3A3D41" />
+
+  <!-- Animation timings; AppearanceManager rewrites these from settings (0 = instant). -->
+  <x:Double x:Key="AnimMs">120</x:Double>
+
+  <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+  <FontFamily x:Key="MonoFont">JetBrains Mono, Cascadia Mono, Consolas, Menlo, monospace</FontFamily>
+</ResourceDictionary>

@@ -1,0 +1,31 @@
+{
+  "id": "themes",
+  "name": "Themes",
+  "version": "0.1.0",
+  "description": "Midnight, Daylight, Ember and High Contrast. A theme is a JSON file with ui, editor and tokenColors sections; theme files that only have 'colors' and 'tokenColors' (the common TextMate-style format) also work, so existing themes are easy to port.",
+  "author": "Aether",
+  "contributes": {
+    "themes": [
+      {
+        "id": "midnight",
+        "name": "Midnight",
+        "path": "midnight.json"
+      },
+      {
+        "id": "daylight",
+        "name": "Daylight",
+        "path": "daylight.json"
+      },
+      {
+        "id": "ember",
+        "name": "Ember",
+        "path": "ember.json"
+      },
+      {
+        "id": "high-contrast",
+        "name": "High Contrast",
+        "path": "high-contrast.json"
+      }
+    ]
+  }
+}

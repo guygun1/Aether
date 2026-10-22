@@ -1,0 +1,222 @@
+{
+  "id": "csharp",
+  "name": "C# / .NET",
+  "version": "0.1.0",
+  "description": "C# support powered by csharp-ls (Roslyn), with dotnet run/build/test configurations and project templates.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "csharp",
+        "name": "C#",
+        "extensions": [
+          ".cs",
+          ".csx"
+        ],
+        "scopeName": "source.cs",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "C#",
+        "iconColor": "#9B4F96"
+      },
+      {
+        "id": "xml",
+        "name": "XML / MSBuild",
+        "extensions": [
+          ".csproj",
+          ".fsproj",
+          ".vbproj",
+          ".props",
+          ".targets",
+          ".xml",
+          ".xaml",
+          ".axaml",
+          ".config",
+          ".resx",
+          ".slnx"
+        ],
+        "scopeName": "text.xml",
+        "blockComment": [
+          "<!--",
+          "-->"
+        ],
+        "icon": "<>",
+        "iconColor": "#6F8AA8"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "csharp-ls",
+        "name": "csharp-ls",
+        "command": "csharp-ls",
+        "languages": [
+          "csharp"
+        ],
+        "install": "dotnet tool install --global csharp-ls",
+        "installUrl": "https://github.com/razzmatazz/csharp-language-server"
+      }
+    ],
+    "runConfigurations": [
+      {
+        "name": "dotnet run",
+        "command": "dotnet run",
+        "when": "*.csproj"
+      },
+      {
+        "name": "dotnet build",
+        "command": "dotnet build",
+        "when": "*.csproj",
+        "kind": "build"
+      },
+      {
+        "name": "dotnet test",
+        "command": "dotnet test",
+        "when": "*.csproj",
+        "kind": "test"
+      },
+      {
+        "name": "dotnet build (solution)",
+        "command": "dotnet build",
+        "when": "*.sln",
+        "kind": "build"
+      },
+      {
+        "name": "dotnet test (solution)",
+        "command": "dotnet test",
+        "when": "*.sln",
+        "kind": "test"
+      }
+    ],
+    "projectTemplates": [
+      {
+        "id": "cs-console",
+        "name": "C#: Console App",
+        "description": "A .NET console application (dotnet new console).",
+        "command": "dotnet new console -n \"${name}\" -o \"${name}\""
+      },
+      {
+        "id": "cs-classlib",
+        "name": "C#: Class Library",
+        "description": "A .NET class library (dotnet new classlib).",
+        "command": "dotnet new classlib -n \"${name}\" -o \"${name}\""
+      },
+      {
+        "id": "cs-xunit",
+        "name": "C#: xUnit Test Project",
+        "description": "A .NET test project using xUnit.",
+        "command": "dotnet new xunit -n \"${name}\" -o \"${name}\""
+      }
+    ],
+    "snippets": [
+      {
+        "language": "csharp",
+        "prefix": "prop",
+        "body": "public ${1:int} ${2:Name} { get; set; }$0",
+        "description": "Auto property"
+      },
+      {
+        "language": "csharp",
+        "prefix": "ctor",
+        "body": [
+          "public ${1:ClassName}(${2})",
+          "{",
+          "\t$0",
+          "}"
+        ],
+        "description": "Constructor"
+      },
+      {
+        "language": "csharp",
+        "prefix": "cw",
+        "body": "Console.WriteLine($1);$0",
+        "description": "Console.WriteLine"
+      },
+      {
+        "language": "csharp",
+        "prefix": "foreach",
+        "body": [
+          "foreach (var ${1:item} in ${2:collection})",
+          "{",
+          "\t$0",
+          "}"
+        ],
+        "description": "foreach loop"
+      },
+      {
+        "language": "csharp",
+        "prefix": "class",
+        "body": [
+          "public class ${1:Name}",
+          "{",
+          "\t$0",
+          "}"
+        ],
+        "description": "class"
+      },
+      {
+        "language": "csharp",
+        "prefix": "surround-if",
+        "body": [
+          "if (${1:condition})",
+          "{",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with if"
+      },
+      {
+        "language": "csharp",
+        "prefix": "surround-try",
+        "body": [
+          "try",
+          "{",
+          "\t${TM_SELECTED_TEXT}",
+          "}",
+          "catch (${1:Exception} ${2:e})",
+          "{",
+          "\t$0",
+          "}"
+        ],
+        "description": "Surround with try/catch"
+      },
+      {
+        "language": "csharp",
+        "prefix": "surround-using",
+        "body": [
+          "using (${1:var resource = expression})",
+          "{",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with using"
+      },
+      {
+        "language": "csharp",
+        "prefix": "surround-region",
+        "body": [
+          "#region ${1:Name}",
+          "${TM_SELECTED_TEXT}",
+          "#endregion$0"
+        ],
+        "description": "Surround with #region"
+      }
+    ],
+    "dependencyManagers": [
+      {
+        "id": "nuget",
+        "name": "NuGet",
+        "manifest": "*.csproj",
+        "format": "msbuild",
+        "add": "dotnet add \"${manifest}\" package ${name}${version}",
+        "remove": "dotnet remove \"${manifest}\" package ${name}",
+        "update": "dotnet add \"${manifest}\" package ${name}",
+        "restore": "dotnet restore",
+        "docs": "https://www.nuget.org/packages/${name}",
+        "search": "https://www.nuget.org/packages?q=${query}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MultiIde.Views.WelcomeWindow"
+        Title="Welcome to Aether"
+        Icon="/Assets/aether.ico"
+        Width="980" Height="660" MinWidth="760" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="34"
+        Background="{StaticResource EditorBg}">
+  <Grid RowDefinitions="34,*">
+    <Border x:Name="TitleBar" Background="{StaticResource PanelBg}">
+      <TextBlock Text="Welcome to Aether" Classes="muted" FontSize="12"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Border>
+    <ContentControl x:Name="HubHost" Grid.Row="1" />
+
+    <Panel x:Name="OverlayLayer" Grid.Row="0" Grid.RowSpan="2" IsVisible="False" Background="#40000000" />
+    <StackPanel x:Name="NotificationStack" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,16,16" Spacing="8" Width="380" />
+  </Grid>
+</Window>

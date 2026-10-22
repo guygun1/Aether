@@ -1,0 +1,184 @@
+{
+  "id": "cmake",
+  "name": "CMake",
+  "version": "0.1.0",
+  "description": "CMake syntax highlighting, cmake-language-server, configure/build/run configurations and C++ project templates.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "cmake",
+        "name": "CMake",
+        "filenames": [
+          "CMakeLists.txt"
+        ],
+        "extensions": [
+          ".cmake"
+        ],
+        "grammar": "cmake.tmLanguage.json",
+        "lineComment": "#",
+        "icon": "CM",
+        "iconColor": "#3B9B5A"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "cmake-language-server",
+        "name": "cmake-language-server",
+        "command": "cmake-language-server",
+        "languages": [
+          "cmake"
+        ],
+        "install": "pip install --user cmake-language-server",
+        "installUrl": "https://github.com/regen100/cmake-language-server"
+      }
+    ],
+    "runConfigurations": [
+      {
+        "name": "CMake: Build & Run",
+        "command": "cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build --target run",
+        "when": "CMakeLists.txt"
+      },
+      {
+        "name": "CMake: Configure",
+        "command": "cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "when": "CMakeLists.txt",
+        "kind": "build"
+      },
+      {
+        "name": "CMake: Build",
+        "command": "cmake --build build",
+        "when": "CMakeLists.txt",
+        "kind": "build"
+      },
+      {
+        "name": "CMake: Test (ctest)",
+        "command": "cmake --build build && ctest --test-dir build --output-on-failure",
+        "when": "CMakeLists.txt",
+        "kind": "test"
+      }
+    ],
+    "projectTemplates": [
+      {
+        "id": "cpp-cmake-exe",
+        "name": "C++: Executable (CMake)",
+        "description": "A C++20 console application built with CMake. Needs CMake and a C++ compiler (MSVC from Visual Studio, clang or gcc).",
+        "files": {
+          "CMakeLists.txt": [
+            "cmake_minimum_required(VERSION 3.20)",
+            "project(${name} LANGUAGES CXX)",
+            "",
+            "set(CMAKE_CXX_STANDARD 20)",
+            "set(CMAKE_CXX_STANDARD_REQUIRED ON)",
+            "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)",
+            "",
+            "add_executable(${name} src/main.cpp)",
+            "",
+            "# `cmake --build build --target run` builds and runs the app.",
+            "add_custom_target(run COMMAND ${name} DEPENDS ${name})"
+          ],
+          "src/main.cpp": [
+            "#include <iostream>",
+            "",
+            "int main() {",
+            "    std::cout << \"Hello from ${name}!\" << std::endl;",
+            "    return 0;",
+            "}"
+          ],
+          ".gitignore": [
+            "build/",
+            ".cache/"
+          ],
+          ".clangd": [
+            "CompileFlags:",
+            "  CompilationDatabase: build"
+          ]
+        }
+      },
+      {
+        "id": "cpp-cmake-lib",
+        "name": "C++: Static Library (CMake)",
+        "description": "A C++20 static library with a header in include/.",
+        "files": {
+          "CMakeLists.txt": [
+            "cmake_minimum_required(VERSION 3.20)",
+            "project(${name} LANGUAGES CXX)",
+            "set(CMAKE_CXX_STANDARD 20)",
+            "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)",
+            "add_library(${name} STATIC src/library.cpp)",
+            "target_include_directories(${name} PUBLIC include)"
+          ],
+          "include/library.h": [
+            "#pragma once",
+            "",
+            "int add(int a, int b);"
+          ],
+          "src/library.cpp": [
+            "#include \"library.h\"",
+            "",
+            "int add(int a, int b) {",
+            "    return a + b;",
+            "}"
+          ],
+          ".gitignore": [
+            "build/",
+            ".cache/"
+          ]
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "cmake",
+        "prefix": "exe",
+        "body": "add_executable(${1:target} ${2:src/main.cpp})",
+        "description": "add_executable"
+      },
+      {
+        "language": "cmake",
+        "prefix": "lib",
+        "body": "add_library(${1:target} ${2:STATIC} ${3:src/lib.cpp})",
+        "description": "add_library"
+      },
+      {
+        "language": "cmake",
+        "prefix": "link",
+        "body": "target_link_libraries(${1:target} PRIVATE ${2:lib})",
+        "description": "target_link_libraries"
+      },
+      {
+        "language": "cmake",
+        "prefix": "fetch",
+        "body": [
+          "include(FetchContent)",
+          "FetchContent_Declare(",
+          "\t${1:name}",
+          "\tGIT_REPOSITORY ${2:https://github.com/}",
+          "\tGIT_TAG ${3:main}",
+          ")",
+          "FetchContent_MakeAvailable(${1:name})"
+        ],
+        "description": "FetchContent dependency"
+      }
+    ],
+    "dependencyManagers": [
+      {
+        "id": "vcpkg",
+        "name": "vcpkg",
+        "manifest": "vcpkg.json",
+        "format": "vcpkg",
+        "add": "vcpkg add port ${name}",
+        "restore": "vcpkg install",
+        "docs": "https://vcpkg.io/en/package/${name}",
+        "search": "https://vcpkg.io/en/packages?query=${query}"
+      },
+      {
+        "id": "cmake-deps",
+        "name": "CMake",
+        "manifest": "CMakeLists.txt",
+        "format": "cmake",
+        "restore": "cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      }
+    ]
+  }
+}

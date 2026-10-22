@@ -1,0 +1,178 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:MultiIde.Views"
+        x:Class="MultiIde.Views.MainWindow"
+        x:DataType="v:MainWindow"
+        Title="Aether"
+        Icon="/Assets/aether.ico"
+        Width="1440" Height="900" MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="40"
+        Background="{StaticResource PanelBg}">
+
+  <Grid x:Name="Root" RowDefinitions="40,*,26">
+
+    <!-- ===== Main toolbar / title bar ===== -->
+    <Border x:Name="TitleBar" Grid.Row="0" Background="{StaticResource PanelBg}"
+            BorderBrush="{StaticResource EditorBg}" BorderThickness="0,0,0,1">
+      <!-- Toolbar zones; MainWindow.Toolbar.cs fills them from Settings (customizable). -->
+      <Grid ColumnDefinitions="Auto,*,Auto,146">
+        <StackPanel x:Name="ToolbarLeft" Orientation="Horizontal" Spacing="2" Margin="8,0,0,0" VerticalAlignment="Center" />
+        <StackPanel x:Name="ToolbarCenter" Grid.Column="1" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <StackPanel x:Name="ToolbarRight" Grid.Column="2" Orientation="Horizontal" Spacing="2" Margin="0,0,8,0" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <!-- Toolbar parts that need names; the toolbar builder moves them into the zones above. -->
+    <Panel x:Name="ToolbarParts" IsVisible="False">
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <Button x:Name="MainMenuButton" Classes="flat" ToolTip.Tip="Main Menu">
+            <TextBlock Classes="icon" Text="&#xE700;" />
+          </Button>
+          <Button x:Name="ProjectButton" Classes="flat" Padding="6,3">
+            <StackPanel Orientation="Horizontal" Spacing="7">
+              <Border x:Name="ProjectBadge" Width="22" Height="22" CornerRadius="5" Background="#3574F0">
+                <TextBlock x:Name="ProjectBadgeText" Text="M" FontSize="10" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <TextBlock x:Name="ProjectNameText" Text="No project" FontWeight="SemiBold" VerticalAlignment="Center" />
+              <TextBlock Classes="icon" Text="&#xE70D;" FontSize="9" Foreground="{StaticResource FgMuted}" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="2">
+          <ComboBox x:Name="RunConfigBox" MinWidth="170" MaxWidth="260" Height="28" VerticalAlignment="Center"
+                    Background="Transparent" BorderThickness="0" PlaceholderText="Add Configuration…" FontSize="13" />
+          <Button x:Name="RunButton" Classes="flat" ToolTip.Tip="Run (Shift+F10)">
+            <TextBlock Classes="icon" Text="&#xE768;" Foreground="{StaticResource Success}" />
+          </Button>
+          <Button x:Name="StopButton" Classes="flat" ToolTip.Tip="Stop (Ctrl+F2)" IsEnabled="False">
+            <TextBlock Classes="icon" Text="&#xE71A;" Foreground="{StaticResource Error}" />
+          </Button>
+          <Border Width="1" Height="18" Background="{StaticResource Border}" Margin="6,0" />
+          <Button x:Name="SearchButton" Classes="flat" ToolTip.Tip="Search Everywhere (Double Shift)">
+            <TextBlock Classes="icon" Text="&#xE721;" />
+          </Button>
+          <Button x:Name="SettingsButton" Classes="flat" ToolTip.Tip="Settings (Ctrl+Alt+S)">
+            <TextBlock Classes="icon" Text="&#xE713;" />
+          </Button>
+        </StackPanel>
+    </Panel>
+
+    <!-- ===== Body ===== -->
+    <Grid x:Name="Body" Grid.Row="1" ColumnDefinitions="40,280,1,*,1,0,40">
+
+      <!-- Left tool window stripe -->
+      <Border Grid.Column="0" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource EditorBg}" BorderThickness="0,0,1,0">
+        <DockPanel Margin="0,6">
+          <StackPanel x:Name="LeftStripeBottom" DockPanel.Dock="Bottom" />
+          <StackPanel x:Name="LeftStripeTop" />
+        </DockPanel>
+      </Border>
+
+      <!-- Project tool window -->
+      <Border x:Name="LeftPanel" Grid.Column="1" Background="{StaticResource PanelBg}">
+        <DockPanel>
+          <Grid DockPanel.Dock="Top" Height="36" ColumnDefinitions="*,Auto" Margin="12,0,6,0">
+            <TextBlock Classes="header" Text="Project" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+              <Button x:Name="CollapseAllButton" Classes="flat" ToolTip.Tip="Collapse All">
+                <TextBlock Classes="icon" Text="&#xE70E;" FontSize="12" />
+              </Button>
+              <Button x:Name="RefreshTreeButton" Classes="flat" ToolTip.Tip="Reload from Disk">
+                <TextBlock Classes="icon" Text="&#xE72C;" FontSize="12" />
+              </Button>
+              <Button x:Name="HideLeftButton" Classes="flat" ToolTip.Tip="Hide (Shift+Esc)">
+                <TextBlock Classes="icon" Text="&#xE921;" FontSize="12" />
+              </Button>
+            </StackPanel>
+          </Grid>
+          <TreeView x:Name="ProjectTree" Margin="4,0,4,4" Background="Transparent">
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate DataType="v:FileNode" ItemsSource="{Binding Children}">
+                <StackPanel Orientation="Horizontal" Spacing="6" Height="22">
+                  <TextBlock Classes="icon" FontSize="14" Text="{Binding Glyph}" Foreground="{Binding IconBrush}"
+                             IsVisible="{Binding !HasBadge}" />
+                  <Border Width="16" Height="14" CornerRadius="3" Background="{Binding IconBrush}"
+                          VerticalAlignment="Center" IsVisible="{Binding HasBadge}">
+                    <TextBlock Text="{Binding Badge}" FontSize="7.5" FontWeight="Bold" Foreground="White"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="{Binding NameBrush}" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="v:FileNode">
+                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+              </Style>
+            </TreeView.Styles>
+          </TreeView>
+        </DockPanel>
+      </Border>
+      <GridSplitter x:Name="LeftSplitter" Grid.Column="2" ResizeDirection="Columns" />
+
+      <!-- Editor + bottom tool window -->
+      <Grid x:Name="CenterGrid" Grid.Column="3" RowDefinitions="*,1,240">
+        <Grid Grid.Row="0" RowDefinitions="36,*" Background="{StaticResource EditorBg}">
+          <Border Grid.Row="0" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource EditorBg}" BorderThickness="0,0,0,1">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+              <StackPanel x:Name="TabStrip" Orientation="Horizontal" />
+            </ScrollViewer>
+          </Border>
+          <ContentControl x:Name="EditorHost" Grid.Row="1" />
+          <ContentControl x:Name="EmptyEditorHost" Grid.Row="1" />
+        </Grid>
+        <GridSplitter x:Name="BottomSplitter" Grid.Row="1" ResizeDirection="Rows" />
+        <Border x:Name="BottomPanel" Grid.Row="2" Background="{StaticResource PanelBg}">
+          <DockPanel>
+            <Grid DockPanel.Dock="Top" Height="34" ColumnDefinitions="Auto,*,Auto" Margin="12,0,6,0">
+              <TextBlock x:Name="BottomTitle" Classes="header" Text="Terminal" VerticalAlignment="Center" Margin="0,0,14,0" />
+              <StackPanel x:Name="BottomToolbar" Grid.Column="1" Orientation="Horizontal" Spacing="4" />
+              <Button x:Name="HideBottomButton" Grid.Column="2" Classes="flat" ToolTip.Tip="Hide (Shift+Esc)">
+                <TextBlock Classes="icon" Text="&#xE921;" FontSize="12" />
+              </Button>
+            </Grid>
+            <ContentControl x:Name="BottomContent" />
+          </DockPanel>
+        </Border>
+      </Grid>
+
+      <GridSplitter x:Name="RightSplitter" Grid.Column="4" ResizeDirection="Columns" />
+      <Border x:Name="RightPanel" Grid.Column="5" Background="{StaticResource PanelBg}">
+        <ContentControl x:Name="RightContent" />
+      </Border>
+
+      <!-- Right tool window stripe -->
+      <Border Grid.Column="6" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource EditorBg}" BorderThickness="1,0,0,0">
+        <StackPanel x:Name="RightStripe" Margin="0,6" />
+      </Border>
+    </Grid>
+
+    <!-- ===== Status bar ===== -->
+    <Border Grid.Row="2" Background="{StaticResource PanelBg}" BorderBrush="{StaticResource EditorBg}" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto" Margin="10,0,6,0">
+        <StackPanel x:Name="Breadcrumbs" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <TextBlock x:Name="StatusMessage" Classes="muted" FontSize="12" MaxWidth="420" TextTrimming="CharacterEllipsis" />
+          <TextBlock x:Name="StatusProgress" Classes="muted" FontSize="12" MaxWidth="360" TextTrimming="CharacterEllipsis" />
+          <Button x:Name="StatusLsp" Classes="flat" Padding="4,0" FontSize="12" />
+          <TextBlock x:Name="StatusProblems" FontSize="12" />
+          <TextBlock x:Name="StatusPosition" Classes="muted" FontSize="12" />
+          <TextBlock x:Name="StatusEol" Classes="muted" FontSize="12" />
+          <TextBlock Text="UTF-8" Classes="muted" FontSize="12" />
+          <TextBlock x:Name="StatusIndent" Classes="muted" FontSize="12" />
+          <TextBlock x:Name="StatusLanguage" Classes="muted" FontSize="12" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ===== Overlays ===== -->
+    <Panel x:Name="OverlayLayer" Grid.Row="0" Grid.RowSpan="3" IsVisible="False" Background="#40000000" />
+    <StackPanel x:Name="NotificationStack" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,56,12" Spacing="8" Width="380" />
+  </Grid>
+</Window>

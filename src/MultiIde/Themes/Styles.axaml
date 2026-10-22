@@ -1,0 +1,178 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cc="using:AvaloniaEdit.CodeCompletion">
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{StaticResource PanelBg}" />
+    <Setter Property="Foreground" Value="{StaticResource Fg}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <Style Selector="TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Fg}" />
+  </Style>
+  <Style Selector="TextBlock.muted">
+    <Setter Property="Foreground" Value="{StaticResource FgMuted}" />
+  </Style>
+  <Style Selector="TextBlock.icon">
+    <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.header">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+
+  <!-- Flat toolbar / stripe buttons -->
+  <Style Selector="Button.flat">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="6,4" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Foreground" Value="{StaticResource Fg}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.flat:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Hover}" />
+  </Style>
+  <Style Selector="Button.flat:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource BorderStrong}" />
+  </Style>
+  <Style Selector="Button.flat:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Opacity" Value="0.4" />
+  </Style>
+  <Style Selector="Button.flat.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+  <Style Selector="Button.stripe">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0,3" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.primary">
+    <Setter Property="Background" Value="{StaticResource Accent}" />
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Padding" Value="14,5" />
+  </Style>
+  <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource AccentHover}" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+  <Style Selector="Button.secondary">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Padding" Value="14,5" />
+  </Style>
+
+  <!-- Inputs -->
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="{StaticResource InputBg}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{StaticResource Accent}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Background" Value="{StaticResource InputBg}" />
+  </Style>
+  <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="{StaticResource InputBg}" />
+  </Style>
+  <Style Selector="TextBox.mono">
+    <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <!-- Compact lists and trees, like IntelliJ -->
+  <Style Selector="TreeViewItem">
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="TreeViewItem /template/ Border#PART_LayoutRoot">
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+  <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+  <Style Selector="TreeViewItem:selected:focus /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+  <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Hover}" />
+  </Style>
+  <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="CornerRadius" Value="4" />
+  </Style>
+  <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Hover}" />
+  </Style>
+  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Selection}" />
+  </Style>
+
+  <!-- Popups, menus, tooltips -->
+  <Style Selector="ContextMenu, MenuFlyoutPresenter">
+    <Setter Property="Background" Value="{StaticResource PopupBg}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+  <Style Selector="MenuItem">
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="{StaticResource PopupBg}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}" />
+    <Setter Property="Foreground" Value="{StaticResource Fg}" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="MaxWidth" Value="720" />
+  </Style>
+
+  <!-- Thin IntelliJ-like scrollbars -->
+  <Style Selector="ScrollBar">
+    <Setter Property="AllowAutoHide" Value="True" />
+  </Style>
+
+  <Style Selector="GridSplitter">
+    <Setter Property="Background" Value="{StaticResource Border}" />
+    <Setter Property="MinWidth" Value="1" />
+    <Setter Property="MinHeight" Value="1" />
+  </Style>
+
+  <!-- AvaloniaEdit completion popup -->
+  <Style Selector="cc|CompletionList">
+    <Setter Property="Background" Value="{StaticResource PopupBg}" />
+  </Style>
+  <Style Selector="cc|CompletionListBox > ListBoxItem">
+    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="MinHeight" Value="22" />
+  </Style>
+</Styles>

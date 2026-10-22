@@ -1,0 +1,172 @@
+{
+  "id": "cpp",
+  "name": "C / C++",
+  "version": "0.1.0",
+  "description": "C and C++ support powered by clangd: completion, diagnostics, clang-tidy, navigation and refactoring. Pair with the CMake plugin for builds.",
+  "author": "Aether",
+  "contributes": {
+    "languages": [
+      {
+        "id": "cpp",
+        "name": "C++",
+        "extensions": [
+          ".cpp",
+          ".cc",
+          ".cxx",
+          ".c++",
+          ".hpp",
+          ".hh",
+          ".hxx",
+          ".ipp",
+          ".inl",
+          ".h"
+        ],
+        "scopeName": "source.cpp",
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "C+",
+        "iconColor": "#4C8CD8"
+      },
+      {
+        "id": "c",
+        "name": "C",
+        "extensions": [
+          ".c"
+        ],
+        "lineComment": "//",
+        "blockComment": [
+          "/*",
+          "*/"
+        ],
+        "icon": "C",
+        "iconColor": "#5C7CB8"
+      }
+    ],
+    "lspServers": [
+      {
+        "id": "clangd",
+        "name": "clangd",
+        "command": "clangd",
+        "args": [
+          "--background-index",
+          "--clang-tidy",
+          "--header-insertion=iwyu",
+          "--completion-style=detailed",
+          "--function-arg-placeholders",
+          "--pch-storage=memory"
+        ],
+        "languages": [
+          "cpp",
+          "c"
+        ],
+        "install": "winget install --id LLVM.LLVM -e --accept-source-agreements --accept-package-agreements",
+        "installUrl": "https://clangd.llvm.org/installation"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "cpp",
+        "prefix": "main",
+        "body": [
+          "int main(int argc, char* argv[]) {",
+          "\t$0",
+          "\treturn 0;",
+          "}"
+        ],
+        "description": "main function"
+      },
+      {
+        "language": "cpp",
+        "prefix": "class",
+        "body": [
+          "class ${1:Name} {",
+          "public:",
+          "\t${1:Name}();",
+          "\t~${1:Name}();",
+          "",
+          "private:",
+          "\t$0",
+          "};"
+        ],
+        "description": "class"
+      },
+      {
+        "language": "cpp",
+        "prefix": "for",
+        "body": [
+          "for (${1:int} ${2:i} = 0; ${2:i} < ${3:n}; ++${2:i}) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "for loop"
+      },
+      {
+        "language": "cpp",
+        "prefix": "forr",
+        "body": [
+          "for (${1:const auto}& ${2:item} : ${3:container}) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "range-based for"
+      },
+      {
+        "language": "cpp",
+        "prefix": "once",
+        "body": "#pragma once",
+        "description": "#pragma once"
+      },
+      {
+        "language": "cpp",
+        "prefix": "cout",
+        "body": "std::cout << ${1} << std::endl;",
+        "description": "std::cout"
+      },
+      {
+        "language": "cpp",
+        "prefix": "surround-if",
+        "body": [
+          "if (${1:condition}) {",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with if"
+      },
+      {
+        "language": "cpp",
+        "prefix": "surround-for",
+        "body": [
+          "for (${1:int i = 0; i < n; ++i}) {",
+          "\t${TM_SELECTED_TEXT}",
+          "}$0"
+        ],
+        "description": "Surround with for"
+      },
+      {
+        "language": "cpp",
+        "prefix": "surround-try",
+        "body": [
+          "try {",
+          "\t${TM_SELECTED_TEXT}",
+          "} catch (${1:const std::exception}& ${2:e}) {",
+          "\t$0",
+          "}"
+        ],
+        "description": "Surround with try/catch"
+      },
+      {
+        "language": "cpp",
+        "prefix": "surround-ifdef",
+        "body": [
+          "#ifdef ${1:MACRO}",
+          "${TM_SELECTED_TEXT}",
+          "#endif$0"
+        ],
+        "description": "Surround with #ifdef"
+      }
+    ]
+  }
+}
